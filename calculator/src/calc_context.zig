@@ -21,28 +21,18 @@ pub fn init(alloc: Allocator) void {
 }
 
 pub fn deinit() void {
-    for (function_declarations.items) |decl, i| {
-        allocator.free(function_declarations.items[i].function_name);
-
-        for (decl.equation) |node, j| {
-            if (node.nodeType == .VariableReference)
-                allocator.free(function_declarations.items[i].equation[j].value.variable_name);
-        }
-        allocator.free(function_declarations.items[i].equation);
-
-        for (decl.parameters) |_, j|
-            allocator.free(function_declarations.items[i].parameters[j]);
-        allocator.free(function_declarations.items[i].parameters);
-    }
+    for (function_declarations.items) |decl| decl.free(allocator);
     function_declarations.deinit();
 
-    for (variable_declarations.items) |_, i|
-        freeVariableDeclaration(i);
+    for (variable_declarations.items) |_, i| freeVariableDeclaration(i);
     variable_declarations.deinit();
 }
 
 pub fn freeVariableDeclaration(index: usize) void {
     allocator.free(variable_declarations.items[index].variable_name);
+
+    for (variable_declarations.items[index].equation) |_, i|
+        variable_declarations.items[index].equation[i].free(allocator);
     allocator.free(variable_declarations.items[index].equation);
 }
 

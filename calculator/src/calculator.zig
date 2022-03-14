@@ -25,7 +25,8 @@ pub fn calculate(input: []const u8) !?f32 {
             return err;
         };
 
-        allocator.free(tree);
+        // Free ast
+        for (tree) |node| node.free(allocator);
         return result;
     }
 

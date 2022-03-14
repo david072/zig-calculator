@@ -234,12 +234,6 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
             }
         };
 
-        allocator.free(equation[i].value.function_call.function_name);
-
-        for (equation[i].value.function_call.parameters) |_, index|
-            allocator.free(equation[i].value.function_call.parameters[index]);
-        allocator.free(equation[i].value.function_call.parameters);
-
         equation[i].nodeType = .Operand;
         equation[i].value = .{ .number = result };
     }

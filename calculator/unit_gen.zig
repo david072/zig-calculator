@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Writer = std.io.Writer(std.fs.File, std.os.WriteError, std.fs.File.write);
+
 /// Generates `/calculator/src/units.zig` from `/calculator/units.txt`
 /// This file provides functions for the engine to convert units
 pub fn generate() !void {
@@ -20,9 +22,11 @@ pub fn generate() !void {
     var buf: [1024]u8 = undefined;
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |line|
         try writeFunction(gpa.allocator(), line, &writer);
+
+    // TODO: Add a function to tell whether a unit string is a valid unit
 }
 
-fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const std.io.Writer(std.fs.File, std.os.WriteError, std.fs.File.write)) !void {
+fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const Writer) !void {
     var _function_name = std.ArrayList(u8).init(allocator);
     var _variable_name = std.ArrayList(u8).init(allocator);
     var did_find_variable_name = false;
@@ -53,7 +57,7 @@ fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const 
     const variable_name = _variable_name.toOwnedSlice();
     defer allocator.free(variable_name);
 
-    try writer.print("pub fn {s}({s}: comptime_float) @TypeOf({s})", .{ function_name, variable_name, variable_name });
+    try writer.print("pub fn {s}({s}: anytype) @TypeOf({s})", .{ function_name, variable_name, variable_name });
     _ = try writer.write(" {\n");
     try writer.print("return {s};\n", .{return_value});
     _ = try writer.write("}\n");

@@ -19,7 +19,7 @@ pub fn deinit() void {
 pub fn calculate(input: []const u8) !?f32 {
     const maybe_tree = try parser.parse(allocator, input);
     if (maybe_tree) |tree| {
-        // dumpAst(tree, 0);
+        dumpAst(tree, 0);
         const result = engine.evaluate(allocator, tree) catch |err| {
             allocator.free(tree);
             return err;
@@ -51,10 +51,11 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
                 std.debug.print("   children: {d}\n", .{item.value.children.len});
                 dumpAst(item.value.children, nestingLevel + 1);
             },
-            .Operand => std.debug.print("   number: {d}\n", .{item.value.number}),
+            .Operand => std.debug.print("   number: {d}, unit: {s}\n", .{ item.value.operand.number, item.value.operand.unit }),
             .Operator => std.debug.print("   operation: {s}\n", .{item.value.operation}),
             .FunctionCall => std.debug.print("   function: name: {s}, parameters: {s}\n", .{ item.value.function_call.function_name, item.value.function_call.parameters }),
             .VariableReference => std.debug.print("   variable: {s}\n", .{item.value.variable_name}),
+            .Unit => std.debug.print("   unit: {s}\n", .{item.value.unit}),
             .Separator => unreachable,
         }
     }

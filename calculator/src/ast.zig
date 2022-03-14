@@ -6,9 +6,13 @@ pub const AstNode = struct {
         children: []AstNode,
         function_call: FunctionCall,
         nothing: u1,
-        number: f32,
+        operand: struct {
+            number: f32,
+            unit: ?[]const u8 = null,
+        },
         variable_name: []const u8,
         operation: Operation,
+        unit: []const u8, // Target unit for conversions
     },
 
     /// Recursively frees all allocated memory inside this struct
@@ -24,7 +28,12 @@ pub const AstNode = struct {
                 allocator.free(self.value.function_call.parameters);
             },
             .VariableReference => allocator.free(self.value.variable_name),
-            .Separator, .Operand, .Operator => {},
+            .Operand => {
+                if (self.value.operand.unit != null)
+                    allocator.free(self.value.operand.unit.?);
+            },
+            .Unit => allocator.free(self.value.unit),
+            .Separator, .Operator => {},
         }
     }
 };
@@ -53,6 +62,7 @@ pub const AstNodeType = enum {
     Operand,
     VariableReference,
     Operator,
+    Unit,
 };
 
 pub const Operation = enum {
@@ -60,4 +70,5 @@ pub const Operation = enum {
     Subtraction,
     Multiplication,
     Division,
+    Conversion,
 };

@@ -8,7 +8,11 @@ const AstNode = ast.AstNode;
 const context = @import("./calc_context.zig");
 const util = @import("../util/util.zig");
 
+const units = @import("units.zig");
+
 const CalculationError = error{
+    InvalidSyntax,
+
     ExpectedOperand,
     ExpectedOperation,
     NotEnoughNodes,
@@ -44,7 +48,7 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!f32 {
         allocator.free(deepestNestedGroup.?.value.children);
 
         deepestNestedGroup.?.nodeType = .Operand;
-        deepestNestedGroup.?.value = .{ .number = groupResult };
+        deepestNestedGroup.?.value = .{ .operand = .{ .number = groupResult } };
 
         currentNestingLevel = 0;
         deepestNestingLevel = 0;
@@ -82,24 +86,28 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
     try evaluateFunctions(allocator, originalEquation);
 
     if (originalEquation.len == 1 and originalEquation[0].nodeType == .Operand) {
-        return originalEquation[0].value.number;
+        return originalEquation[0].value.operand.number;
     } else if (originalEquation.len < 3) return CalculationError.NotEnoughNodes;
+
+    const equation1 = try convertUnits(allocator, originalEquation);
 
     const equation = try evaluatePointCalculations(allocator, originalEquation);
     defer allocator.free(equation);
 
+    allocator.free(equation1);
+
     if (equation.len == 1) {
         if (equation[0].nodeType != .Operand) return CalculationError.ExpectedOperand;
-        return equation[0].value.number;
+        return equation[0].value.operand.number;
     }
 
-    var result: f32 = equation[0].value.number;
+    var result: f32 = equation[0].value.operand.number;
 
     var index: usize = 0;
     while (index < equation.len) : (index += 2) {
         try validateCalculationPair(equation, index);
 
-        const lhs = equation[index + 2].value.number;
+        const lhs = equation[index + 2].value.operand.number;
 
         switch (equation[index + 1].value.operation) {
             .Addition => result += lhs,
@@ -122,7 +130,7 @@ fn expandVariables(allocator: Allocator, tree: []AstNode) CalculationError!void 
         // Handle standard variables (e.g. e, pi)
         if (context.resolveStandardVariable(item.value.variable_name)) |value| {
             tree[i].nodeType = .Operand;
-            tree[i].value = .{ .number = value };
+            tree[i].value = .{ .operand = .{ .number = value } };
             return;
         }
 
@@ -138,7 +146,7 @@ fn expandVariables(allocator: Allocator, tree: []AstNode) CalculationError!void 
         };
 
         tree[i].nodeType = .Operand;
-        tree[i].value = .{ .number = try evaluate(allocator, defined_variable.equation) };
+        tree[i].value = .{ .operand = .{ .number = try evaluate(allocator, defined_variable.equation) } };
     }
 }
 
@@ -235,8 +243,59 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
         };
 
         equation[i].nodeType = .Operand;
-        equation[i].value = .{ .number = result };
+        equation[i].value = .{ .operand = .{ .number = result } };
     }
+}
+
+fn convertUnits(allocator: Allocator, eq: []AstNode) CalculationError![]const AstNode {
+    var equation = try allocator.dupe(AstNode, eq);
+
+    var index: usize = 0;
+    while (index < equation.len) {
+        const operation = equation[index + 1];
+        if (operation.nodeType != .Operator and operation.value.operation != .Conversion) {
+            if (index + 4 >= equation.len) break;
+            index += 2;
+            continue;
+        }
+
+        const lhs = equation[index];
+        const rhs = equation[index + 2];
+
+        // Ensure that only one of both arguments is a unit
+        if (lhs.nodeType != .Operand and rhs.nodeType != .Unit) return CalculationError.InvalidSyntax;
+
+        const unit_function = try std.mem.concat(allocator, u8, &[_][]const u8{ lhs.value.operand.unit.?, "_", rhs.value.unit });
+        std.debug.print("unit_function: {s}\n", .{unit_function});
+        var result_value: f32 = undefined;
+
+        inline for (comptime @typeInfo(units).Struct.decls) |decl| {
+            std.debug.print("decl name: {s}", .{decl.name});
+            if (std.mem.eql(u8, decl.name, unit_function)) {
+                std.debug.print("found func\n", .{});
+                result_value = callUnitFunction(@field(units, decl.name), .{lhs.value.operand.number});
+                break;
+            }
+        }
+
+        std.debug.print("result_value: {d}", .{result_value});
+
+        // Set the current operands value to the result and change the unit to rhs' unit
+        equation[index].value.operand.number = result_value;
+        equation[index].value.operand.unit = try allocator.dupe(u8, rhs.value.unit);
+        // Remove the next operator and operand
+        equation = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation[0 .. index + 1], equation[index + 3 ..] });
+
+        if (index + 2 >= equation.len) break;
+        // Continue at the same element. This way, if there is another multiplication after this one,
+        // we can just keep reducing the array until we're at the end or have only one value left
+    }
+
+    return equation;
+}
+
+fn callUnitFunction(function: anytype, args: anytype) type {
+    return @call(.{}, function, args);
 }
 
 fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) CalculationError![]const AstNode {
@@ -250,8 +309,8 @@ fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) Calculat
 
         switch (operator) {
             .Multiplication, .Division => {
-                const lhs = equation[index].value.number;
-                const rhs = equation[index + 2].value.number;
+                const lhs = equation[index].value.operand.number;
+                const rhs = equation[index + 2].value.operand.number;
 
                 const result: f32 = switch (operator) {
                     .Multiplication => lhs * rhs,
@@ -261,7 +320,7 @@ fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) Calculat
                 };
 
                 // Set the current operands value to the result
-                equation[index].value.number = result;
+                equation[index].value.operand.number = result;
                 // Remove the next operator and operand
                 equation = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation[0 .. index + 1], equation[index + 3 ..] });
 
@@ -278,6 +337,11 @@ fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) Calculat
     }
 
     return equation;
+}
+
+/// Returns whether a calculation can be done, according to units
+fn canCalculate(lhs: AstNode, rhs: AstNode) bool {
+    return (lhs.value.operand.unit == null or rhs.value.operand.unit == null) or std.mem.eql(u8, lhs.value.operand.unit.?, rhs.value.operand.unit.?);
 }
 
 fn validateCalculationPair(equation: []const AstNode, index: usize) CalculationError!void {

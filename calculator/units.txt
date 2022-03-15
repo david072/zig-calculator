@@ -1,2 +1,3 @@
-m_ft = m * 3.281
-ft_m = ft / 3.281
+# format: source-unit_target-unit = calculation (use n in calculation for the input)
+m_ft = n * 3.281
+ft_m = n / 3.281

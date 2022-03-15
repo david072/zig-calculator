@@ -12,6 +12,7 @@ const units = @import("units.zig");
 
 const CalculationError = error{
     InvalidSyntax,
+    UnknownConversion,
 
     ExpectedOperand,
     ExpectedOperation,
@@ -90,6 +91,12 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
     } else if (originalEquation.len < 3) return CalculationError.NotEnoughNodes;
 
     const equation1 = try convertUnits(allocator, originalEquation);
+    std.debug.print("len: {d}", .{equation1.len});
+    if (equation1.len == 1 and equation1[0].nodeType == .Operand) {
+        const result = equation1[0].value.operand.number;
+        allocator.free(equation1);
+        return result;
+    }
 
     const equation = try evaluatePointCalculations(allocator, originalEquation);
     defer allocator.free(equation);
@@ -265,26 +272,17 @@ fn convertUnits(allocator: Allocator, eq: []AstNode) CalculationError![]const As
         // Ensure that only one of both arguments is a unit
         if (lhs.nodeType != .Operand and rhs.nodeType != .Unit) return CalculationError.InvalidSyntax;
 
-        const unit_function = try std.mem.concat(allocator, u8, &[_][]const u8{ lhs.value.operand.unit.?, "_", rhs.value.unit });
-        std.debug.print("unit_function: {s}\n", .{unit_function});
-        var result_value: f32 = undefined;
-
-        inline for (comptime @typeInfo(units).Struct.decls) |decl| {
-            std.debug.print("decl name: {s}", .{decl.name});
-            if (std.mem.eql(u8, decl.name, unit_function)) {
-                std.debug.print("found func\n", .{});
-                result_value = callUnitFunction(@field(units, decl.name), .{lhs.value.operand.number});
-                break;
-            }
-        }
-
-        std.debug.print("result_value: {d}", .{result_value});
+        var result_value: f32 = units.convert(lhs.value.operand.number, lhs.value.operand.unit.?, rhs.value.unit) orelse return CalculationError.UnknownConversion;
+        std.debug.print("result_value: {d}\n", .{result_value});
 
         // Set the current operands value to the result and change the unit to rhs' unit
         equation[index].value.operand.number = result_value;
         equation[index].value.operand.unit = try allocator.dupe(u8, rhs.value.unit);
+        rhs.free(allocator);
         // Remove the next operator and operand
         equation = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation[0 .. index + 1], equation[index + 3 ..] });
+
+        std.debug.print("{s}\n", .{equation});
 
         if (index + 2 >= equation.len) break;
         // Continue at the same element. This way, if there is another multiplication after this one,

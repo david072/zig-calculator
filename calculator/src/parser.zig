@@ -38,7 +38,7 @@ pub var errorIndex: usize = undefined;
 pub fn parse(allocator: std.mem.Allocator, _input: []const u8) ParsingError!?[]AstNode {
     const input = std.mem.trim(u8, _input, " ");
     if (std.mem.startsWith(u8, input, "def:")) {
-        // parseDeclaration adds a new function declaration or variable declaration to calc_context
+        // parseDeclaration adds a new function or variable declaration to calc_context
         parseDeclaration(allocator, input[4..]) catch |err| {
             errorIndex += 4;
             return err;
@@ -280,7 +280,7 @@ pub fn parseEquation(allocator: std.mem.Allocator, input: []const u8, allowed_va
                 if ((char == '+' or char == '-') and index + 1 < input.len) {
                     // Check if next char is a number and previous char is either unavailable or a space
                     if (std.mem.containsAtLeast(u8, numbers, 1, &[_]u8{input[index + 1]}) and
-                        (index == 0 or input[index - 1] == ' '))
+                        (index == 0 or !std.mem.containsAtLeast(u8, numbers, 1, &[_]u8{input[index - 1]})))
                     {
                         try number.append(char);
                         continue;

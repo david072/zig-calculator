@@ -90,18 +90,17 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
         return originalEquation[0].value.operand.number;
     } else if (originalEquation.len < 3) return CalculationError.NotEnoughNodes;
 
-    const equation1 = try convertUnits(allocator, originalEquation);
-    std.debug.print("len: {d}", .{equation1.len});
-    if (equation1.len == 1 and equation1[0].nodeType == .Operand) {
-        const result = equation1[0].value.operand.number;
-        allocator.free(equation1);
-        return result;
+    var equation = try allocator.dupe(AstNode, originalEquation);
+    defer {
+        for (equation) |node| node.free(allocator);
+        allocator.free(equation);
     }
 
     const equation = try evaluatePointCalculations(allocator, originalEquation);
     defer allocator.free(equation);
 
-    allocator.free(equation1);
+    try convertUnits(allocator, &equation);
+    try evaluatePointCalculations(allocator, &equation);
 
     if (equation.len == 1) {
         if (equation[0].nodeType != .Operand) return CalculationError.ExpectedOperand;
@@ -254,61 +253,51 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
     }
 }
 
-fn convertUnits(allocator: Allocator, eq: []AstNode) CalculationError![]const AstNode {
-    var equation = try allocator.dupe(AstNode, eq);
-
+fn convertUnits(allocator: Allocator, equation: *[]AstNode) CalculationError!void {
     var index: usize = 0;
     while (index < equation.len) {
-        const operation = equation[index + 1];
+        const operation = equation.*[index + 1];
         if (operation.nodeType != .Operator and operation.value.operation != .Conversion) {
             if (index + 4 >= equation.len) break;
             index += 2;
             continue;
         }
 
-        const lhs = equation[index];
-        const rhs = equation[index + 2];
+        const lhs = equation.*[index];
+        const rhs = equation.*[index + 2];
 
-        // Ensure that only one of both arguments is a unit
+        // Validate syntax
         if (lhs.nodeType != .Operand and rhs.nodeType != .Unit) return CalculationError.InvalidSyntax;
+        if (lhs.value.operand.unit == null) return CalculationError.InvalidSyntax;
 
-        var result_value: f32 = units.convert(lhs.value.operand.number, lhs.value.operand.unit.?, rhs.value.unit) orelse return CalculationError.UnknownConversion;
-        std.debug.print("result_value: {d}\n", .{result_value});
+        var result_value = units.convert(lhs.value.operand.number, lhs.value.operand.unit.?, rhs.value.unit) orelse return CalculationError.UnknownConversion;
 
         // Set the current operands value to the result and change the unit to rhs' unit
-        equation[index].value.operand.number = result_value;
-        equation[index].value.operand.unit = try allocator.dupe(u8, rhs.value.unit);
+        equation.*[index].value.operand.number = result_value;
+        equation.*[index].value.operand.unit = try allocator.dupe(u8, rhs.value.unit);
         rhs.free(allocator);
         // Remove the next operator and operand
-        equation = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation[0 .. index + 1], equation[index + 3 ..] });
-
-        std.debug.print("{s}\n", .{equation});
+        equation.* = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation.*[0 .. index + 1], equation.*[index + 3 ..] });
 
         if (index + 2 >= equation.len) break;
         // Continue at the same element. This way, if there is another multiplication after this one,
         // we can just keep reducing the array until we're at the end or have only one value left
     }
-
-    return equation;
 }
 
-fn callUnitFunction(function: anytype, args: anytype) type {
-    return @call(.{}, function, args);
-}
-
-fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) CalculationError![]const AstNode {
-    var equation = try allocator.dupe(AstNode, eq);
+fn evaluatePointCalculations(allocator: Allocator, equation: *[]const AstNode) CalculationError!void {
+    if (equation.len > 3) return;
 
     var index: usize = 0;
     while (index < equation.len) {
-        try validateCalculationPair(equation, index);
+        try validateCalculationPair(equation.*, index);
 
-        const operator = equation[index + 1].value.operation;
+        const operator = equation.*[index + 1].value.operation;
 
         switch (operator) {
             .Multiplication, .Division => {
-                const lhs = equation[index].value.operand.number;
-                const rhs = equation[index + 2].value.operand.number;
+                const lhs = equation.*[index].value.operand.number;
+                const rhs = equation.*[index + 2].value.operand.number;
 
                 const result: f32 = switch (operator) {
                     .Multiplication => lhs * rhs,
@@ -318,9 +307,9 @@ fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) Calculat
                 };
 
                 // Set the current operands value to the result
-                equation[index].value.operand.number = result;
+                equation.*[index].value.operand.number = result;
                 // Remove the next operator and operand
-                equation = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation[0 .. index + 1], equation[index + 3 ..] });
+                equation.* = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation.*[0 .. index + 1], equation.*[index + 3 ..] });
 
                 if (index + 2 >= equation.len) break;
                 // Continue at the same element. This way, if there is another multiplication after this one,
@@ -333,8 +322,6 @@ fn evaluatePointCalculations(allocator: Allocator, eq: []const AstNode) Calculat
             },
         }
     }
-
-    return equation;
 }
 
 /// Returns whether a calculation can be done, according to units

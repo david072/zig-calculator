@@ -4,7 +4,8 @@ const ArrayList = std.ArrayList;
 const ast = @import("./ast.zig");
 const AstNode = ast.AstNode;
 
-const calc_context = @import("./calc_context.zig");
+const calc_context = @import("calc_context.zig");
+const units = @import("units.zig");
 
 const numbers = "1234567890";
 const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -15,6 +16,7 @@ const ParsingError = error{
     MissingBracket,
 
     UnknownVariable,
+    UnknownUnit,
 
     ExpectedParameter,
     ExpectedEqualsSign,
@@ -365,10 +367,15 @@ fn makeOperand(allocator: std.mem.Allocator, number: []const u8, allowed_variabl
 
     // If number could not be parsed into a number, check if it is a valid variable name
     if (number_value == null) {
-        if (try getUnitNode(allocator, number)) |node| return node;
+        if (try getUnitNode(allocator, number)) |node| {
+            return node;
+        } else {
+            // TODO: errorIndex
+            return ParsingError.UnknownUnit;
+        }
 
-        // TODO: Don't hardcode!
-        if (std.mem.eql(u8, "m", number) or std.mem.eql(u8, "ft", number)) {
+        // TODO: Show proper error if it is neither a unit nor a variable
+        if (units.isUnit(number)) {
             return AstNode{
                 .nodeType = .Unit,
                 .value = .{ .unit = number },
@@ -419,6 +426,12 @@ fn getUnitNode(allocator: std.mem.Allocator, unit_with_number: []const u8) !?Ast
             },
             else => return null,
         }
+    }
+
+    if (!units.isUnit(unit.items)) {
+        unit.deinit();
+        _unit_number.deinit();
+        return null;
     }
 
     const unit_number = _unit_number.toOwnedSlice();

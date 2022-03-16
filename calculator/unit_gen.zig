@@ -2,11 +2,16 @@ const std = @import("std");
 
 const Writer = std.io.Writer(std.fs.File, std.os.WriteError, std.fs.File.write);
 
+var units: std.ArrayList([]const u8) = undefined;
+
 /// Generates `/calculator/src/units.zig` from `/calculator/units.txt`
 /// This file provides functions for the engine to convert units
 pub fn generate() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     defer _ = gpa.deinit();
+
+    units = std.ArrayList([]const u8).init(gpa.allocator());
+    defer units.deinit();
 
     const file = try std.fs.cwd().openFile("./calculator/units.txt", .{});
     defer file.close();
@@ -31,7 +36,7 @@ pub fn generate() !void {
     _ = try writer.write("return null;\n");
     _ = try writer.write("}\n");
 
-    // TODO: Add a function to tell whether a unit string is a valid unit
+    try writeValidUnitsFunction(gpa.allocator(), &writer);
 }
 
 fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const Writer) !void {
@@ -66,8 +71,8 @@ fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const 
     const function_name = _function_name.toOwnedSlice();
     defer allocator.free(function_name);
 
+    // source_unit_name is freed in writeValidUnitsFunction
     const source_unit_name = _source_unit_name.toOwnedSlice();
-    defer allocator.free(source_unit_name);
 
     const target_unit_name = _target_unit_name.toOwnedSlice();
     defer allocator.free(target_unit_name);
@@ -77,8 +82,25 @@ fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const 
     try writer.print("    return {s};\n", .{return_value});
     _ = try writer.write("}\n");
 
-    // try writer.print("pub fn {s}({s}: anytype) @TypeOf({s})", .{ function_name, variable_name, variable_name });
-    // _ = try writer.write(" {\n");
-    // try writer.print("return {s};\n", .{return_value});
-    // _ = try writer.write("}\n");
+    try units.append(source_unit_name);
+}
+
+fn writeValidUnitsFunction(allocator: std.mem.Allocator, writer: *const Writer) !void {
+    _ = try writer.write("\nconst valid_units = [_][]const u8{");
+
+    var index: usize = 0;
+    while (index < units.items.len) : (index += 1) {
+        try writer.print("\"{s}\",", .{units.items[index]});
+        allocator.free(units.items[index]);
+    }
+
+    _ = try writer.write("};\n");
+    _ = try writer.write(
+        \\pub fn isUnit(str: []const u8) bool {
+        \\    inline for (valid_units) |unit| {
+        \\        if (std.mem.eql(u8, unit, str)) return true;
+        \\    }
+        \\    return false;
+        \\}
+    );
 }

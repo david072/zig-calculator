@@ -367,12 +367,7 @@ fn makeOperand(allocator: std.mem.Allocator, number: []const u8, allowed_variabl
 
     // If number could not be parsed into a number, check if it is a valid variable name
     if (number_value == null) {
-        if (try getUnitNode(allocator, number)) |node| {
-            return node;
-        } else {
-            // TODO: errorIndex
-            return ParsingError.UnknownUnit;
-        }
+        if (try getUnitNode(allocator, number)) |node| return node;
 
         // TODO: Show proper error if it is neither a unit nor a variable
         if (units.isUnit(number)) {

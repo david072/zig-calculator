@@ -51,12 +51,7 @@ pub fn main() anyerror!void {
 
 fn validateInput(input: []u8) ?usize {
     for (input) |item, index| {
-        if (item >= 'A' and item <= 'Z') {
-            input[index] += 'a' - 'A'; // lowercase
-            continue;
-        } else {
-            if (!std.mem.containsAtLeast(u8, allowedCharacters, 1, &[_]u8{item})) return index;
-        }
+        if (!std.mem.containsAtLeast(u8, allowedCharacters, 1, &[_]u8{item})) return index;
     }
 
     return null;

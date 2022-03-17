@@ -25,7 +25,66 @@ pub fn generate() !void {
     _ = try writer.write("// Generated from ../units.txt by ../unit_gen.zig during build step.\n");
 
     _ = try writer.write("const std = @import(\"std\");\n");
-    _ = try writer.write("pub fn convert(n: f32, source_unit: []const u8, target_unit: []const u8) ?f32 {\n");
+
+    _ = try writer.write(
+        \\
+        \\const unit_prefixes = [_][]const u8{"n", "m", "c", "d", "none", "h", "k", "M", "g", "t"};
+        \\fn indexOfUnitPrefix(prefix: []const u8) ?usize {
+        \\    for (unit_prefixes) |u, i|
+        \\        if (std.mem.eql(u8, u, prefix)) return i;
+        \\    return null;
+        \\}
+        \\
+        \\const ResultStruct = struct {
+        \\    source_start_index: usize,
+        \\    target_start_index: usize,
+        \\};
+        \\
+        \\fn normalizeUnits(num: *f32, source_unit: []const u8, target_unit: []const u8) ResultStruct {
+        \\    var source_prefix: usize = 4;
+        \\    var target_prefix: usize = 4;
+        \\
+        \\    if (source_unit.len > 1)
+        \\        source_prefix = indexOfUnitPrefix(&[_]u8{source_unit[0]}) orelse return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
+        \\    if (target_unit.len > 1)
+        \\        target_prefix = indexOfUnitPrefix(&[_]u8{target_unit[0]}) orelse return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
+        \\    
+        \\    if (source_prefix == target_prefix) return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
+        \\    const target_value = unit_prefixes[target_prefix];
+        \\
+        \\    const incrementor: i8 = if (target_prefix > source_prefix) 1 else -1;
+        \\    var index = source_prefix;
+        \\    while (true) : ({
+        \\        if (incrementor > 0) {
+        \\            index += 1;
+        \\        } else {
+        \\            index -= 1;
+        \\        }
+        \\    }) {
+        \\        if (std.mem.eql(u8, target_value, unit_prefixes[index])) break;
+        \\        // If we're going up the list (getting to greater "prefix-values"), we want to reduce the value
+        \\        num.* *= if (incrementor > 0) 0.1 else @as(f32, 10);
+        \\    }
+        \\
+        \\    return ResultStruct{ 
+        \\        .source_start_index = if (source_prefix == 4) 0 else 1, 
+        \\        .target_start_index = if (target_prefix == 4) 0 else 1, 
+        \\    };
+        \\}
+    );
+
+    _ = try writer.write(
+        \\pub fn convert(number: f32, source_unit: []const u8, target_unit: []const u8) ?f32 {
+        \\    var n: f32 = number;
+        \\    const start_indices = normalizeUnits(&n, source_unit, target_unit);
+        \\    const source_start_index = start_indices.source_start_index;
+        \\    const target_start_index = start_indices.target_start_index;
+        \\
+        \\    if (std.mem.eql(u8, source_unit[source_start_index..], target_unit[target_start_index..])) return n;
+        \\
+    );
+
+    _ = try writer.write("\n");
 
     var buf: [1024]u8 = undefined;
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
@@ -77,7 +136,7 @@ fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const 
     const target_unit_name = _target_unit_name.toOwnedSlice();
     defer allocator.free(target_unit_name);
 
-    try writer.print("if (std.mem.eql(u8, source_unit, \"{s}\") and std.mem.eql(u8, target_unit, \"{s}\")) ", .{ source_unit_name, target_unit_name });
+    try writer.print("if (std.mem.eql(u8, source_unit[source_start_index..], \"{s}\") and std.mem.eql(u8, target_unit[target_start_index..], \"{s}\")) ", .{ source_unit_name, target_unit_name });
     _ = try writer.write("{\n");
     try writer.print("    return {s};\n", .{return_value});
     _ = try writer.write("}\n");
@@ -98,9 +157,14 @@ fn writeValidUnitsFunction(allocator: std.mem.Allocator, writer: *const Writer) 
     _ = try writer.write(
         \\pub fn isUnit(str: []const u8) bool {
         \\    inline for (valid_units) |unit| {
-        \\        if (std.mem.eql(u8, unit, str)) return true;
+        \\        if (std.mem.eql(u8, unit, str)) {
+        \\            return true;
+        \\        } else {
+        \\            if (str.len > 1 and indexOfUnitPrefix(&[_]u8{str[0]}) != null and std.mem.eql(u8, unit, str[1..])) return true;
+        \\        }
         \\    }
         \\    return false;
         \\}
+        \\
     );
 }

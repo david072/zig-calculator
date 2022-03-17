@@ -16,18 +16,27 @@ pub fn deinit() void {
     context.deinit();
 }
 
-pub fn calculate(input: []const u8) !?f32 {
+pub fn calculate(input: []const u8) !?[]const u8 {
     const maybe_tree = try parser.parse(allocator, input);
     if (maybe_tree) |tree| {
-        dumpAst(tree, 0);
+        // dumpAst(tree, 0);
         const result = engine.evaluate(allocator, tree) catch |err| {
             allocator.free(tree);
             return err;
         };
 
+        var buf: [100]u8 = undefined;
+        const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
+
+        var formattedResult = std.ArrayList(u8).init(allocator);
+        try formattedResult.appendSlice(number);
+        if (result.value.operand.unit != null)
+            try formattedResult.appendSlice(try allocator.dupe(u8, result.value.operand.unit.?));
+
         // Free ast
         for (tree) |node| node.free(allocator);
-        return result;
+
+        return formattedResult.toOwnedSlice();
     }
 
     // dumpAst(context.function_declarations.items[0].equation, 0);

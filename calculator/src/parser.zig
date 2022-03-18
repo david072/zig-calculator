@@ -414,7 +414,7 @@ fn getUnitNode(allocator: std.mem.Allocator, unit_with_number: []const u8) !?Ast
                 if (did_find_number) return null;
                 try _unit_number.append(char);
             },
-            'a'...'z', '_' => {
+            'a'...'z', 'A'...'Z', '_' => {
                 if (_unit_number.items.len == 0) return null;
                 did_find_number = true;
                 try unit.append(char);

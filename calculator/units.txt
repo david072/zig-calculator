@@ -22,22 +22,23 @@ min_h = n / 60
 h_min = n * 60
 
 # Angle
-#°_rad = n * (180 / std.math.pi)
-#rad_° = n * (180 / std.math.pi)
+# FIXME: Figure out how to handle non-ascii symbols like "°"
+deg_rad = n * (180 / std.math.pi)
+rad_deg = n * (180 / std.math.pi)
 
 # Temperature
-#°C_°F = (n * 9 / 5) + 32
-#°F_°C = (n - 32) * 5 / 9
+degC_degF = (n * 9 / 5) + 32
+degF_degC = (n - 32) * 5 / 9
 
-#°C_K = n + 273.15
-#K_°C = n - 273.15
+degC_K = n + 273.15
+#K_degC = n - 273.15
 
-#°F_K = (n - 32) * 5 / 9 + 273.15
-#K_°F = (n - 273.15) * 9 / 5 + 32
+degF_K = (n - 32) * 5 / 9 + 273.15
+#K_degF = (n - 273.15) * 9 / 5 + 32
 
 # Weight
 g_lb = n / 453.59237
 lb_g = n * 453.59237
 
 # Units that don't have conversions (yet), but should still be included for their multiples (with the prefixes)
-- g, cal
+- cal

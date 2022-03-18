@@ -28,7 +28,8 @@ pub fn generate() !void {
 
     _ = try writer.write(
         \\
-        \\const unit_prefixes = [_][]const u8{"n", "m", "c", "d", "none", "h", "k", "M", "g", "t"};
+        \\ // "da" is currently not supported, however we need it as a spacer
+        \\const unit_prefixes = [_][]const u8{"n", "m", "c", "d", "none", "da", "h", "k", "M", "g", "t"};
         \\fn indexOfUnitPrefix(prefix: []const u8) ?usize {
         \\    for (unit_prefixes) |u, i|
         \\        if (std.mem.eql(u8, u, prefix)) return i;
@@ -90,7 +91,13 @@ pub fn generate() !void {
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         if (line.len == 0 or line.len == 1) continue;
         if (line[0] == '#') continue;
-        try writeFunction(gpa.allocator(), line, &writer);
+
+        if (line[0] == '-') {
+            try writeRemainingUnits(gpa.allocator(), line, &writer);
+            break;
+        }
+
+        try writeUnitFromLine(gpa.allocator(), line, &writer);
     }
 
     _ = try writer.write("return null;\n");
@@ -99,7 +106,7 @@ pub fn generate() !void {
     try writeValidUnitsFunction(gpa.allocator(), &writer);
 }
 
-fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const Writer) !void {
+fn writeUnitFromLine(allocator: std.mem.Allocator, line: []const u8, writer: *const Writer) !void {
     var _function_name = std.ArrayList(u8).init(allocator);
     var _source_unit_name = std.ArrayList(u8).init(allocator);
     var _target_unit_name = std.ArrayList(u8).init(allocator);
@@ -143,6 +150,37 @@ fn writeFunction(allocator: std.mem.Allocator, line: []const u8, writer: *const 
     _ = try writer.write("}\n");
 
     try units.append(source_unit_name);
+}
+
+fn writeRemainingUnits(allocator: std.mem.Allocator, line: []const u8, writer: *const Writer) !void {
+    var unit = std.ArrayList(u8).init(allocator);
+    defer unit.deinit();
+
+    for (line) |char| {
+        switch (char) {
+            ' ', '-' => continue,
+            ',' => {
+                if (unit.items.len == 0) continue;
+                try writer.print("if (std.mem.eql(u8, source_unit[source_start_index..], \"{s}\") and std.mem.eql(u8, target_unit[target_start_index..], \"{s}\")) return n;\n", .{ unit.items, unit.items });
+                // Will later be freed by writeValidUnitsFunction
+                try addValidUnit(unit.toOwnedSlice());
+            },
+            else => try unit.append(char),
+        }
+    }
+
+    if (unit.items.len > 0) {
+        try writer.print("if (std.mem.eql(u8, source_unit[source_start_index..], \"{s}\") and std.mem.eql(u8, target_unit[target_start_index..], \"{s}\")) return n;", .{ unit.items, unit.items });
+        // Will later be freed by writeValidUnitsFunction
+        try addValidUnit(unit.toOwnedSlice());
+    }
+}
+
+fn addValidUnit(unit: []const u8) !void {
+    for (units.items) |item|
+        if (std.mem.eql(u8, item, unit)) return;
+
+    try units.append(unit);
 }
 
 fn writeValidUnitsFunction(allocator: std.mem.Allocator, writer: *const Writer) !void {

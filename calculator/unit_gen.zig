@@ -88,6 +88,7 @@ pub fn generate() !void {
 
     var buf: [1024]u8 = undefined;
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
+        if (line.len == 0 or line.len == 1) continue;
         if (line[0] == '#') continue;
         try writeFunction(gpa.allocator(), line, &writer);
     }

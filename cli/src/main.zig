@@ -2,7 +2,7 @@ const std = @import("std");
 
 const calculator = @import("calculator");
 
-const allowedCharacters = "+-*/=.,()_:0123456789abcdefghijklmnopqrstuvwxyz\n\r ";
+const allowedCharacters = "+-*/=.,()_:°0123456789abcdefghijklmnopqrstuvwxyz\n\r ";
 const exitInput = "exit";
 
 pub fn main() anyerror!void {
@@ -51,7 +51,8 @@ pub fn main() anyerror!void {
 
 fn validateInput(input: []u8) ?usize {
     for (input) |item, index| {
-        if (!std.mem.containsAtLeast(u8, allowedCharacters, 1, &[_]u8{item})) return index;
+        if (item <= 'A' or item >= 'Z')
+            if (!std.mem.containsAtLeast(u8, allowedCharacters, 1, &[_]u8{item})) return index;
     }
 
     return null;

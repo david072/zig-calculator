@@ -1,3 +1,28 @@
 # format: source-unit_target-unit = calculation (use n in calculation for the input)
+
+# Distance
 m_ft = n * 3.281
 ft_m = n / 3.281
+
+s_m = n / 60
+m_s = n * 60
+
+s_h = n / 3600
+h_s = n * 3600
+
+m_h = n * 60
+h_m = n / 60
+
+# Angle
+#°_rad = n * (180 / std.math.pi)
+#rad_° = n * (180 / std.math.pi)
+
+# Temperature
+#°C_°F = (n * 9 / 5) + 32
+#°F_°C = (n - 32) * 5 / 9
+
+#°C_K = n + 273.15
+#K_°C = n - 273.15
+
+#°F_K = (n - 32) * 5 / 9 + 273.15
+#K_°F = (n - 273.15) * 9 / 5 + 32

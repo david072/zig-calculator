@@ -42,19 +42,17 @@ pub fn main() anyerror!void {
             try showErrorPos(&stdout, 10, calculator.parser.errorIndex, err);
             continue :main_loop;
         };
-        if (result != null)
-            try stdout.print("Result: {d}\n", .{result});
+        if (result != null) {
+            try stdout.print("Result: {s}\n", .{result.?});
+            gpa.allocator().free(result.?);
+        }
     }
 }
 
 fn validateInput(input: []u8) ?usize {
     for (input) |item, index| {
-        if (item >= 'A' and item <= 'Z') {
-            input[index] += 'a' - 'A'; // lowercase
-            continue;
-        } else {
+        if (item <= 'A' or item >= 'Z')
             if (!std.mem.containsAtLeast(u8, allowedCharacters, 1, &[_]u8{item})) return index;
-        }
     }
 
     return null;

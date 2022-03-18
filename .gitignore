@@ -1,5 +1,6 @@
-discord/
 app/
+calculator/src/units.zig
+discord/
 util/
 zig-cache/
 zig-out/

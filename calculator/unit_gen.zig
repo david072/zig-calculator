@@ -30,6 +30,13 @@ pub fn generate() !void {
         \\
         \\ // "da" is currently not supported, however we need it as a spacer
         \\const unit_prefixes = [_][]const u8{"n", "m", "c", "d", "none", "da", "h", "k", "M", "g", "t"};
+        \\
+        \\fn unitsContains(unit: []const u8) bool {
+        \\    for (valid_units) |item|
+        \\        if (std.mem.eql(u8, item, unit)) return true;
+        \\    return false;
+        \\}
+        \\
         \\fn indexOfUnitPrefix(prefix: []const u8) ?usize {
         \\    for (unit_prefixes) |u, i|
         \\        if (std.mem.eql(u8, u, prefix)) return i;
@@ -45,10 +52,15 @@ pub fn generate() !void {
         \\    var source_prefix: usize = 4;
         \\    var target_prefix: usize = 4;
         \\
-        \\    if (source_unit.len > 1)
-        \\        source_prefix = indexOfUnitPrefix(&[_]u8{source_unit[0]}) orelse return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
-        \\    if (target_unit.len > 1)
-        \\        target_prefix = indexOfUnitPrefix(&[_]u8{target_unit[0]}) orelse return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
+        \\    if (source_unit.len > 1) {
+        \\        if (!unitsContains(source_unit))
+        \\            source_prefix = indexOfUnitPrefix(&[_]u8{source_unit[0]}) orelse return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
+        \\    }
+        \\
+        \\    if (target_unit.len > 1) {
+        \\        if (!unitsContains(target_unit))
+        \\            target_prefix = indexOfUnitPrefix(&[_]u8{target_unit[0]}) orelse return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
+        \\    }
         \\    
         \\    if (source_prefix == target_prefix) return ResultStruct{ .source_start_index = 0, .target_start_index = 0 };
         \\    const target_value = unit_prefixes[target_prefix];
@@ -149,7 +161,7 @@ fn writeUnitFromLine(allocator: std.mem.Allocator, line: []const u8, writer: *co
     try writer.print("    return {s};\n", .{return_value});
     _ = try writer.write("}\n");
 
-    try units.append(source_unit_name);
+    if (!try addValidUnit(&source_unit_name)) allocator.free(source_unit_name);
 }
 
 fn writeRemainingUnits(allocator: std.mem.Allocator, line: []const u8, writer: *const Writer) !void {
@@ -163,7 +175,8 @@ fn writeRemainingUnits(allocator: std.mem.Allocator, line: []const u8, writer: *
                 if (unit.items.len == 0) continue;
                 try writer.print("if (std.mem.eql(u8, source_unit[source_start_index..], \"{s}\") and std.mem.eql(u8, target_unit[target_start_index..], \"{s}\")) return n;\n", .{ unit.items, unit.items });
                 // Will later be freed by writeValidUnitsFunction
-                try addValidUnit(unit.toOwnedSlice());
+                const unit_slice = unit.toOwnedSlice();
+                if (!try addValidUnit(&unit_slice)) allocator.free(unit_slice);
             },
             else => try unit.append(char),
         }
@@ -172,15 +185,19 @@ fn writeRemainingUnits(allocator: std.mem.Allocator, line: []const u8, writer: *
     if (unit.items.len > 0) {
         try writer.print("if (std.mem.eql(u8, source_unit[source_start_index..], \"{s}\") and std.mem.eql(u8, target_unit[target_start_index..], \"{s}\")) return n;", .{ unit.items, unit.items });
         // Will later be freed by writeValidUnitsFunction
-        try addValidUnit(unit.toOwnedSlice());
+        const unit_slice = unit.toOwnedSlice();
+        if (!try addValidUnit(&unit_slice)) allocator.free(unit_slice);
     }
 }
 
-fn addValidUnit(unit: []const u8) !void {
-    for (units.items) |item|
-        if (std.mem.eql(u8, item, unit)) return;
+fn addValidUnit(unit: *const []const u8) !bool {
+    var i: usize = 0;
+    while (i < units.items.len) : (i += 1) {
+        if (std.mem.eql(u8, units.items[i], unit.*)) return false;
+    }
 
-    try units.append(unit);
+    try units.append(unit.*);
+    return true;
 }
 
 fn writeValidUnitsFunction(allocator: std.mem.Allocator, writer: *const Writer) !void {

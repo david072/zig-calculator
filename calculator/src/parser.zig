@@ -322,7 +322,7 @@ pub fn parseEquation(allocator: std.mem.Allocator, input: []const u8, allowed_va
             ' ' => continue,
             else => {
                 // Hackish. Checks for " in " (operator)
-                if (char >= 'a' and char <= 'z') {
+                if (char >= 'a' and char <= 'z' and index > 0) {
                     if (input[index - 1] == ' ' and input[index] == 'i' and input[index + 1] == 'n' and input[index + 2] == ' ') {
                         if (number.items.len > 0) {
                             // Add number to AST

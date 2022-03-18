@@ -23,8 +23,8 @@ h_min = n * 60
 
 # Angle
 # FIXME: Figure out how to handle non-ascii symbols like "°"
-deg_rad = n * (180 / std.math.pi)
-rad_deg = n * (180 / std.math.pi)
+deg_rad = n * std.math.pi / 180
+rad_deg = n * 180 / std.math.pi
 
 # Temperature
 degC_degF = (n * 9 / 5) + 32

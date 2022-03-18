@@ -4,7 +4,8 @@ const ArrayList = std.ArrayList;
 const ast = @import("./ast.zig");
 const AstNode = ast.AstNode;
 
-const calc_context = @import("./calc_context.zig");
+const calc_context = @import("calc_context.zig");
+const units = @import("units.zig");
 
 const numbers = "1234567890";
 const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -15,6 +16,7 @@ const ParsingError = error{
     MissingBracket,
 
     UnknownVariable,
+    UnknownUnit,
 
     ExpectedParameter,
     ExpectedEqualsSign,
@@ -318,7 +320,27 @@ pub fn parseEquation(allocator: std.mem.Allocator, input: []const u8, allowed_va
                 errorIndex = index + 1;
             },
             ' ' => continue,
-            else => try number.append(char),
+            else => {
+                // Hackish. Checks for " in " (operator)
+                if (char >= 'a' and char <= 'z' and index > 0) {
+                    if (input[index - 1] == ' ' and input[index] == 'i' and input[index + 1] == 'n' and input[index + 2] == ' ') {
+                        if (number.items.len > 0) {
+                            // Add number to AST
+                            try tree.append(try makeOperand(allocator, number.toOwnedSlice(), allowed_variables));
+                            errorIndex = index + 1;
+                        }
+
+                        try tree.append(AstNode{
+                            .nodeType = .Operator,
+                            .value = .{ .operation = .Conversion },
+                        });
+                        index += 2;
+                        continue;
+                    }
+                }
+
+                try number.append(char);
+            },
         }
     }
 
@@ -345,6 +367,16 @@ fn makeOperand(allocator: std.mem.Allocator, number: []const u8, allowed_variabl
 
     // If number could not be parsed into a number, check if it is a valid variable name
     if (number_value == null) {
+        if (try getUnitNode(allocator, number)) |node| return node;
+
+        // TODO: Show proper error if it is neither a unit nor a variable
+        if (units.isUnit(number)) {
+            return AstNode{
+                .nodeType = .Unit,
+                .value = .{ .unit = number },
+            };
+        }
+
         if (!calc_context.isStandardVariable(number)) {
             const allowed = blk: {
                 for (allowed_variables) |variable| {
@@ -358,12 +390,57 @@ fn makeOperand(allocator: std.mem.Allocator, number: []const u8, allowed_variabl
 
     const result = AstNode{
         .nodeType = if (number_value != null) .Operand else .VariableReference,
-        .value = if (number_value != null) .{ .number = number_value.? } else .{ .variable_name = number },
+        .value = if (number_value != null) .{
+            .operand = .{ .number = number_value.? },
+        } else .{
+            .variable_name = number,
+        },
     };
 
     if (number_value != null)
         allocator.free(number);
     return result;
+}
+
+/// Tries to construct an AstNode with a number and a unit
+fn getUnitNode(allocator: std.mem.Allocator, unit_with_number: []const u8) !?AstNode {
+    var _unit_number = ArrayList(u8).init(allocator);
+    var unit = ArrayList(u8).init(allocator);
+    var did_find_number = false;
+
+    for (unit_with_number) |char| {
+        switch (char) {
+            '0'...'9', '.', '-', '+' => {
+                if (did_find_number) return null;
+                try _unit_number.append(char);
+            },
+            'a'...'z', 'A'...'Z', '_' => {
+                if (_unit_number.items.len == 0) return null;
+                did_find_number = true;
+                try unit.append(char);
+            },
+            else => return null,
+        }
+    }
+
+    if (!units.isUnit(unit.items)) {
+        unit.deinit();
+        _unit_number.deinit();
+        return null;
+    }
+
+    const unit_number = _unit_number.toOwnedSlice();
+    defer allocator.free(unit_number);
+
+    return AstNode{
+        .nodeType = .Operand,
+        .value = .{
+            .operand = .{
+                .number = try std.fmt.parseFloat(f32, unit_number),
+                .unit = unit.toOwnedSlice(),
+            },
+        },
+    };
 }
 
 fn getAllowedVariables(allocator: std.mem.Allocator, additional_variables: []const []const u8) ![]const []const u8 {

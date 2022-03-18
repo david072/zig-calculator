@@ -1,0 +1,44 @@
+# format: source-unit_target-unit = calculation (use n in calculation for the input)
+# NOTE: Zig standard library is available
+
+# Distance
+m_ft = n * 3.281
+ft_m = n / 3.281
+
+m_mi = n / 1609.344
+mi_m = n * 1609.344
+
+ft_mi = n / 5280
+mi_ft = n * 5280
+
+# Time
+s_min = n / 60
+min_s = n * 60
+
+s_h = n / 3600
+h_s = n * 3600
+
+min_h = n / 60
+h_min = n * 60
+
+# Angle
+# FIXME: Figure out how to handle non-ascii symbols like "°"
+deg_rad = n * std.math.pi / 180
+rad_deg = n * 180 / std.math.pi
+
+# Temperature
+degC_degF = (n * 9 / 5) + 32
+degF_degC = (n - 32) * 5 / 9
+
+degC_K = n + 273.15
+#K_degC = n - 273.15
+
+degF_K = (n - 32) * 5 / 9 + 273.15
+#K_degF = (n - 273.15) * 9 / 5 + 32
+
+# Weight
+g_lb = n / 453.59237
+lb_g = n * 453.59237
+
+# Units that don't have conversions (yet), but should still be included for their multiples (with the prefixes)
+- cal

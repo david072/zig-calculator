@@ -4,31 +4,58 @@ const Writer = std.io.Writer(std.fs.File, std.os.WriteError, std.fs.File.write);
 
 var units: std.ArrayList([]const u8) = undefined;
 
+var source_last_modified_time: i128 = undefined;
+
+fn shouldRewrite(source_file_path: []const u8, target_file_path: []const u8) bool {
+    const source_file = std.fs.cwd().openFile(source_file_path, .{}) catch return true;
+    defer source_file.close();
+
+    const stat = source_file.stat() catch return true;
+    source_last_modified_time = stat.mtime;
+
+    const target_file = std.fs.cwd().openFile(target_file_path, .{ .write = true }) catch return true;
+    defer target_file.close();
+    const target_file_reader = target_file.reader();
+
+    var buf: [100]u8 = undefined;
+    const first_line = target_file_reader.readUntilDelimiterOrEof(&buf, '\n') catch return true;
+    if (first_line == null) return true;
+
+    const last_written_modified_time = std.fmt.parseInt(i128, first_line.?[2..], 0) catch return true;
+    if (source_last_modified_time == last_written_modified_time) return false;
+    return true;
+}
+
 /// Generates `/calculator/src/units.zig` from `/calculator/units.txt`
 /// This file provides functions for the engine to convert units
 pub fn generate() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     defer _ = gpa.deinit();
 
+    if (!shouldRewrite("./calculator/units.txt", "./calculator/src/units.zig")) {
+        return;
+    }
+
     units = std.ArrayList([]const u8).init(gpa.allocator());
     defer units.deinit();
 
-    const file = try std.fs.cwd().openFile("./calculator/units.txt", .{});
-    defer file.close();
+    const source_file = try std.fs.cwd().openFile("./calculator/units.txt", .{});
+    defer source_file.close();
 
-    const output_file = try std.fs.cwd().createFile("./calculator/src/units.zig", .{});
-    defer output_file.close();
+    const target_file = try std.fs.cwd().createFile("./calculator/src/units.zig", .{});
+    defer target_file.close();
 
-    const reader = file.reader();
-    const writer = output_file.writer();
+    const reader = source_file.reader();
+    const writer = target_file.writer();
 
+    try writer.print("//{d}\n", .{source_last_modified_time});
     _ = try writer.write("// Generated from ../units.txt by ../unit_gen.zig during build step.\n");
 
     _ = try writer.write("const std = @import(\"std\");\n");
 
     _ = try writer.write(
         \\
-        \\ // "da" is currently not supported, however we need it as a spacer
+        \\// "da" is currently not supported, however we need it as a spacer
         \\const unit_prefixes = [_][]const u8{"n", "m", "c", "d", "none", "da", "h", "k", "M", "g", "t"};
         \\
         \\fn unitsContains(unit: []const u8) bool {

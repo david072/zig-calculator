@@ -31,6 +31,10 @@ pub const PAINTSTRUCT = extern struct {
 pub extern "user32" fn BeginPaint(hWnd: HWND, lpPaint: *PAINTSTRUCT) callconv(WINAPI) HDC;
 pub extern "user32" fn EndPaint(hWnd: HWND, lpPaint: *const PAINTSTRUCT) callconv(WINAPI) BOOL;
 pub extern "user32" fn LoadIconW(hInstance: HINSTANCE, lpIconName: LPCWSTR) callconv(WINAPI) HICON;
+pub extern "user32" fn SendMessage(hWnd: HWND, Msg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(WINAPI) LRESULT;
+pub extern "user32" fn SetWindowTextW(hWnd: HWND, lpString: [*:0]const u16) callconv(WINAPI) c_int;
+pub extern "user32" fn GetWindowTextW(hWnd: HWND, lpString: [*:0]const u16, nMaxCount: c_int) callconv(WINAPI) c_int;
+pub extern "user32" fn GetWindowTextLengthW(hWnd: HWND) callconv(WINAPI) c_int;
 
 pub const INITCOMMONCONTROLSEX = extern struct {
     dwSize: c_uint,
@@ -51,3 +55,6 @@ pub const COLOR_3DFACE = 15;
 pub const COLOR_GRAYTEXT = 17;
 pub const COLOR_BTNTEXT = 18;
 pub const COLOR_HOTLIGHT = 26;
+
+// styles
+pub const ES_MULTILINE = 0x0004;

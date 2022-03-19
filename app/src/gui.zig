@@ -104,6 +104,10 @@ pub const Application = struct {
 
         return 0;
     }
+
+    pub fn makeWidget(self: *const Self, comptime Widget: type, options: anytype) !Widget {
+        return try @call(.{}, @field(Widget, "create"), .{ &self.window_handle, &self.hInstance, options });
+    }
 };
 
 pub const PaintContext = struct {

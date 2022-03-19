@@ -4,8 +4,6 @@ pub fn registerExe(b: *std.build.Builder, target: std.zig.CrossTarget, mode: std
     const exe = b.addExecutable("GUI-Calculator", "app/src/main.zig");
     exe.addPackagePath("calculator", "calculator/src/calculator.zig");
 
-    // try @import("lib/zgt/build.zig").install(exe, "app/lib/zgt");
-
     const libcommon = exe.builder.pathJoin(&.{ std.fs.path.dirname(exe.builder.zig_exe).?, "lib", "libc", "mingw", "lib-common", "gdiplus.def" });
     defer exe.builder.allocator.free(libcommon);
 

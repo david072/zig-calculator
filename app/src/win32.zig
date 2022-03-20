@@ -17,8 +17,10 @@ pub const INT = windows.INT;
 pub const WPARAM = windows.WPARAM;
 pub const LPARAM = windows.LPARAM;
 pub const LRESULT = windows.LRESULT;
-const HICON = windows.HICON;
-const LPCWSTR = windows.LPCWSTR;
+pub const HICON = windows.HICON;
+pub const LPCWSTR = windows.LPCWSTR;
+pub const LONG = windows.LONG;
+pub const WCHAR = windows.WCHAR;
 
 pub const PAINTSTRUCT = extern struct {
     hdc: HDC,
@@ -35,6 +37,7 @@ pub extern "user32" fn SendMessage(hWnd: HWND, Msg: UINT, wParam: WPARAM, lParam
 pub extern "user32" fn SetWindowTextW(hWnd: HWND, lpString: [*:0]const u16) callconv(WINAPI) c_int;
 pub extern "user32" fn GetWindowTextW(hWnd: HWND, lpString: [*:0]const u16, nMaxCount: c_int) callconv(WINAPI) c_int;
 pub extern "user32" fn GetWindowTextLengthW(hWnd: HWND) callconv(WINAPI) c_int;
+pub extern "user32" fn MoveWindow(hwnd: HWND, X: c_int, y: c_int, nWidth: c_int, nHeight: c_int, bRepaint: BOOL) callconv(WINAPI) BOOL;
 
 pub const INITCOMMONCONTROLSEX = extern struct {
     dwSize: c_uint,
@@ -45,6 +48,11 @@ pub const ICC_STANDARD_CLASSES = 0x00004000;
 
 pub extern "gdi32" fn GetSysColorBrush(nIndex: c_int) callconv(WINAPI) ?HBRUSH;
 pub extern "gdi32" fn ExtTextOutA(hdc: windows.HDC, x: c_int, y: c_int, options: UINT, lprect: ?*const RECT, lpString: [*]const u8, c: UINT, lpDx: ?*const INT) callconv(WINAPI) BOOL;
+pub const SIZE = extern struct {
+    cx: LONG,
+    cy: LONG,
+};
+pub extern "gdi32" fn GetTextExtentPoint32A(hdc: HDC, lpString: LPCWSTR, c: c_int, psizel: *SIZE) callconv(WINAPI) BOOL;
 
 // system colors constants (only those that are also supported on Windows 10 are present)
 pub const COLOR_WINDOW = 5;
@@ -58,3 +66,6 @@ pub const COLOR_HOTLIGHT = 26;
 
 // styles
 pub const ES_MULTILINE = 0x0004;
+pub const ES_READONLY = 0x0800;
+pub const ES_LEFT = 0x0000;
+pub const ES_RIGHT = 0x0002;

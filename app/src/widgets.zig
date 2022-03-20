@@ -1,12 +1,19 @@
 const std = @import("std");
 const win32 = @import("win32.zig");
 
-pub const Options = struct {
+pub const Alignment = enum(u32) {
+    Left = win32.ES_LEFT,
+    Right = win32.ES_RIGHT,
+};
+
+pub const TextFieldOptions = struct {
+    allocator: std.mem.Allocator,
     x: i32 = 0,
     y: i32 = 0,
     width: i32 = 100,
     height: i32 = 100,
-    allocator: std.mem.Allocator,
+    editable: bool = true,
+    alignment: Alignment = .Left,
 };
 
 pub const TextField = struct {
@@ -15,12 +22,15 @@ pub const TextField = struct {
     hwnd: win32.HWND,
     arena: std.heap.ArenaAllocator,
 
-    pub fn create(parent_hwnd: *const win32.HWND, hInstance: *const win32.HINSTANCE, options: Options) !Self {
+    pub fn create(parent_hwnd: *const win32.HWND, hInstance: *const win32.HINSTANCE, options: TextFieldOptions) !Self {
+        var style: u32 = win32.WS_CHILD | win32.WS_VISIBLE | @enumToInt(options.alignment);
+        if (!options.editable) style |= win32.ES_READONLY;
+
         const hwnd = try win32.createWindowExA(
             win32.WS_EX_LEFT,
             "EDIT",
             "",
-            win32.WS_CHILD | win32.WS_VISIBLE,
+            style,
             options.x,
             options.y,
             options.width,
@@ -61,27 +71,39 @@ pub const TextField = struct {
     }
 };
 
+pub const CalculatorRowOptions = struct {
+    allocator: std.mem.Allocator,
+    x: i32 = 0,
+    y: i32 = 0,
+    width: i32 = 100,
+    height: i32 = 100,
+    index: u8,
+};
+
 pub const CalculatorRow = struct {
     const Self = @This();
 
     input_text_field: TextField,
     output_text_field: TextField,
 
-    pub fn create(parent_hwnd: *const win32.HWND, hInstance: *const win32.HINSTANCE, options: Options) !Self {
+    pub fn create(parent_hwnd: *const win32.HWND, hInstance: *const win32.HINSTANCE, options: CalculatorRowOptions) !Self {
+        // TODO: Maybe get the text height and adjust text field height accordingly?
         var input_text_field = try TextField.create(parent_hwnd, hInstance, .{
             .allocator = options.allocator,
             .x = 0,
-            .y = 0,
+            .y = options.index * 18,
             .width = 400,
-            .height = 50,
+            .height = 18,
         });
-        
+
         var output_text_field = try TextField.create(parent_hwnd, hInstance, .{
             .allocator = options.allocator,
             .x = 400,
-            .y = 0,
-            .width = 235,
-            .height = 50,
+            .y = options.index * 18,
+            .width = 230,
+            .height = 18,
+            .editable = false,
+            .alignment = .Right,
         });
 
         return Self{

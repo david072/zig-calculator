@@ -94,8 +94,8 @@ pub const CalculatorRowOptions = struct {
     allocator: std.mem.Allocator,
     x: i32 = 0,
     y: i32 = 0,
-    width: i32 = 100,
-    height: i32 = 100,
+    input_width: i32 = 100,
+    output_width: i32 = 100,
     index: u30,
 };
 
@@ -112,15 +112,15 @@ pub const CalculatorRow = struct {
             .allocator = options.allocator,
             .x = 0,
             .y = options.index * text_field_height,
-            .width = 400,
+            .width = options.input_width,
             .height = text_field_height,
         });
 
         var output_text_field = try TextField.create(parent_hwnd, hInstance, .{
             .allocator = options.allocator,
-            .x = 400,
+            .x = options.input_width,
             .y = options.index * text_field_height,
-            .width = 230,
+            .width = options.output_width,
             .height = text_field_height,
             .editable = false,
             .alignment = .Right,

@@ -11,8 +11,8 @@ var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 
 const class_name = "calculatorWin";
 
-const width = 650;
-const height = 650;
+const width = 400;
+const height = 400;
 const screen_height = height - 40; // subtract title bar height
 var app: Application = undefined;
 
@@ -20,7 +20,7 @@ var calculator_rows: std.ArrayList(widgets.CalculatorRow) = undefined;
 var calculator_row_index: u30 = 0;
 var row_count: u30 = 0;
 
-// TODO: - Use dark-mode
+// TODO: - DARK-MODE!!
 
 pub fn main() !void {
     defer _ = gpa.deinit();
@@ -36,10 +36,14 @@ pub fn main() !void {
     app.setPreTranslateCallback(preWndProc);
     app.setPaintCallback(paint);
 
-    try calculator_rows.append(try app.makeWidget(widgets.CalculatorRow, .{
+    const row = try app.makeWidget(widgets.CalculatorRow, .{
         .allocator = gpa.allocator(),
         .index = 0,
-    }));
+        .input_width = 300,
+        .output_width = 82,
+    });
+    row.focus();
+    try calculator_rows.append(row);
 
     app.startEventLoop();
 }
@@ -82,6 +86,8 @@ fn preWndProc(msg: *const win32.MSG) void {
                 const new_row = app.makeWidget(widgets.CalculatorRow, .{
                     .allocator = gpa.allocator(),
                     .index = row_count,
+                    .input_width = 300,
+                    .output_width = 82,
                 }) catch |err| {
                     std.debug.print("Failed to create widget: {s}\n", .{@errorName(err)});
                     return;
@@ -126,7 +132,7 @@ fn preWndProc(msg: *const win32.MSG) void {
                 calculator_rows.items[calculator_row_index].focus();
             },
             win32.VK_CONTROL => control_down = true,
-            else => std.debug.print("other key\n", .{}),
+            else => {},
         }
     } else if (msg.message == win32.WM_KEYUP) {
         if (msg.wParam == win32.VK_CONTROL) control_down = false;

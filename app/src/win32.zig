@@ -38,6 +38,7 @@ pub extern "user32" fn SetWindowTextW(hWnd: HWND, lpString: [*:0]const u16) call
 pub extern "user32" fn GetWindowTextW(hWnd: HWND, lpString: [*:0]const u16, nMaxCount: c_int) callconv(WINAPI) c_int;
 pub extern "user32" fn GetWindowTextLengthW(hWnd: HWND) callconv(WINAPI) c_int;
 pub extern "user32" fn MoveWindow(hwnd: HWND, X: c_int, y: c_int, nWidth: c_int, nHeight: c_int, bRepaint: BOOL) callconv(WINAPI) BOOL;
+pub extern "user32" fn SetFocus(hwnd: ?HWND) callconv(WINAPI) ?HWND;
 
 pub const INITCOMMONCONTROLSEX = extern struct {
     dwSize: c_uint,
@@ -69,3 +70,12 @@ pub const ES_MULTILINE = 0x0004;
 pub const ES_READONLY = 0x0800;
 pub const ES_LEFT = 0x0000;
 pub const ES_RIGHT = 0x0002;
+
+// notification codes
+pub const EN_KILLFOCUS = 0x0200;
+
+// key codes
+pub const VK_RETURN = 0x0D;
+pub const VK_UP = 0x26;
+pub const VK_DOWN = 0x28;
+pub const VK_BACK = 0x08;

@@ -9,6 +9,7 @@ pub const Application = struct {
     hInstance: win32.HINSTANCE,
     window_handle: win32.HWND,
     paint_callback: ?fn (context: *const PaintContext) void = null,
+    pre_translate_message_callback: ?fn (msg: *const win32.MSG) void = null,
 
     pub fn init() Self {
         const hInstance = @ptrCast(win32.HINSTANCE, @alignCast(@alignOf(win32.HINSTANCE), win32.GetModuleHandleW(null).?));
@@ -65,6 +66,10 @@ pub const Application = struct {
         self.paint_callback = paint_callback;
     }
 
+    pub fn setPreTranslateCallback(self: *Self, callback: fn (msg: *const win32.MSG) void) void {
+        self.pre_translate_message_callback = callback;
+    }
+
     pub fn startEventLoop(self: *const Self) void {
         _ = win32.showWindow(self.window_handle, win32.SW_SHOWDEFAULT);
         _ = win32.UpdateWindow(self.window_handle);
@@ -76,6 +81,9 @@ pub const Application = struct {
 
             if ((msg.message & 0xFF) == 0x012) // WM_QUIT
                 break;
+
+            if (self.pre_translate_message_callback) |*cbk|
+                cbk.*(&msg);
 
             _ = win32.TranslateMessage(&msg);
             _ = win32.DispatchMessageA(&msg);

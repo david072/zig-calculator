@@ -57,10 +57,14 @@ pub const TextField = struct {
         }
     }
 
+    pub fn getTextLength(self: *const TextField) c_int {
+        return win32.GetWindowTextLengthW(self.hwnd);
+    }
+
     pub fn getText(self: *TextField) [:0]const u8 {
         const allocator = self.arena.allocator();
 
-        const len = win32.GetWindowTextLengthW(self.hwnd);
+        const len = self.getTextLength();
         var buf = allocator.allocSentinel(u16, @intCast(usize, len), 0) catch unreachable; // TODO return error
         defer allocator.free(buf);
 
@@ -68,6 +72,10 @@ pub const TextField = struct {
         const utf16Slice = buf[0..realLen];
         const text = std.unicode.utf16leToUtf8AllocZ(allocator, utf16Slice) catch unreachable; // TODO return error
         return text;
+    }
+
+    pub fn destroy(self: *const Self) !void {
+        try win32.destroyWindow(self.hwnd);
     }
 };
 
@@ -77,7 +85,7 @@ pub const CalculatorRowOptions = struct {
     y: i32 = 0,
     width: i32 = 100,
     height: i32 = 100,
-    index: u8,
+    index: u30,
 };
 
 pub const CalculatorRow = struct {
@@ -110,5 +118,14 @@ pub const CalculatorRow = struct {
             .input_text_field = input_text_field,
             .output_text_field = output_text_field,
         };
+    }
+
+    pub fn focus(self: *const Self) void {
+        _ = win32.SetFocus(self.input_text_field.hwnd);
+    }
+
+    pub fn destroy(self: *const Self) !void {
+        try self.input_text_field.destroy();
+        try self.output_text_field.destroy();
     }
 };

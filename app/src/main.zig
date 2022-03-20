@@ -88,11 +88,18 @@ fn preWndProc(msg: *const win32.MSG) void {
                 const current_row = &calculator_rows.items[calculator_row_index];
                 if (current_row.input_text_field.getTextLength() != 0) return;
 
+                var i: usize = calculator_row_index + 1;
+                while (i < calculator_rows.items.len) : (i += 1) {
+                    // Move one text field (18) up
+                    calculator_rows.items[i].translate(0, -18);
+                }
                 current_row.destroy() catch return;
                 _ = calculator_rows.orderedRemove(calculator_row_index);
 
-                calculator_row_index -= 1;
                 row_count -= 1;
+                if (calculator_row_index > 0) {
+                    calculator_row_index -= 1;
+                }
                 calculator_rows.items[calculator_row_index].focus();
             },
             else => std.debug.print("other key\n", .{}),

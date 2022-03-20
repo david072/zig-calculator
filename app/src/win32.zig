@@ -39,6 +39,7 @@ pub extern "user32" fn GetWindowTextW(hWnd: HWND, lpString: [*:0]const u16, nMax
 pub extern "user32" fn GetWindowTextLengthW(hWnd: HWND) callconv(WINAPI) c_int;
 pub extern "user32" fn MoveWindow(hwnd: HWND, X: c_int, y: c_int, nWidth: c_int, nHeight: c_int, bRepaint: BOOL) callconv(WINAPI) BOOL;
 pub extern "user32" fn SetFocus(hwnd: ?HWND) callconv(WINAPI) ?HWND;
+pub extern "user32" fn SetWindowPos(hWnd: HWND, hWndInsertAfter: ?HWND, X: c_int, Y: c_int, cx: c_int, cy: c_int, uFlag: UINT) callconv(WINAPI) BOOL;
 
 pub const INITCOMMONCONTROLSEX = extern struct {
     dwSize: c_uint,

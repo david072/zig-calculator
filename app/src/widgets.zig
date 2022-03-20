@@ -21,6 +21,10 @@ pub const TextField = struct {
 
     hwnd: win32.HWND,
     arena: std.heap.ArenaAllocator,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
 
     pub fn create(parent_hwnd: *const win32.HWND, hInstance: *const win32.HINSTANCE, options: TextFieldOptions) !Self {
         var style: u32 = win32.WS_CHILD | win32.WS_VISIBLE | @enumToInt(options.alignment);
@@ -44,10 +48,20 @@ pub const TextField = struct {
         return Self{
             .hwnd = hwnd,
             .arena = std.heap.ArenaAllocator.init(options.allocator),
+            .x = options.x,
+            .y = options.y,
+            .width = options.width,
+            .height = options.height,
         };
     }
 
-    pub fn setText(self: *TextField, text: []const u8) void {
+    pub fn translate(self: *Self, x: c_int, y: c_int) void {
+        self.x += x;
+        self.y += y;
+        _ = win32.SetWindowPos(self.hwnd, null, self.x, self.y, self.width, self.height, 0);
+    }
+
+    pub fn setText(self: *Self, text: []const u8) void {
         const allocator = self.arena.allocator();
         const wide = std.unicode.utf8ToUtf16LeWithNull(allocator, text) catch return; // invalid utf8 or not enough memory
         defer allocator.free(wide);
@@ -57,11 +71,11 @@ pub const TextField = struct {
         }
     }
 
-    pub fn getTextLength(self: *const TextField) c_int {
+    pub fn getTextLength(self: *const Self) c_int {
         return win32.GetWindowTextLengthW(self.hwnd);
     }
 
-    pub fn getText(self: *TextField) [:0]const u8 {
+    pub fn getText(self: *Self) [:0]const u8 {
         const allocator = self.arena.allocator();
 
         const len = self.getTextLength();
@@ -90,6 +104,7 @@ pub const CalculatorRowOptions = struct {
 
 pub const CalculatorRow = struct {
     const Self = @This();
+    pub const text_field_height = 18;
 
     input_text_field: TextField,
     output_text_field: TextField,
@@ -99,17 +114,17 @@ pub const CalculatorRow = struct {
         var input_text_field = try TextField.create(parent_hwnd, hInstance, .{
             .allocator = options.allocator,
             .x = 0,
-            .y = options.index * 18,
+            .y = options.index * text_field_height,
             .width = 400,
-            .height = 18,
+            .height = text_field_height,
         });
 
         var output_text_field = try TextField.create(parent_hwnd, hInstance, .{
             .allocator = options.allocator,
             .x = 400,
-            .y = options.index * 18,
+            .y = options.index * text_field_height,
             .width = 230,
-            .height = 18,
+            .height = text_field_height,
             .editable = false,
             .alignment = .Right,
         });
@@ -122,6 +137,11 @@ pub const CalculatorRow = struct {
 
     pub fn focus(self: *const Self) void {
         _ = win32.SetFocus(self.input_text_field.hwnd);
+    }
+
+    pub fn translate(self: *Self, x: c_int, y: c_int) void {
+        self.input_text_field.translate(x, y);
+        self.output_text_field.translate(x, y);
     }
 
     pub fn destroy(self: *const Self) !void {

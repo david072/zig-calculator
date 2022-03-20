@@ -80,3 +80,4 @@ pub const VK_RETURN = 0x0D;
 pub const VK_UP = 0x26;
 pub const VK_DOWN = 0x28;
 pub const VK_BACK = 0x08;
+pub const VK_CONTROL = 0x11;

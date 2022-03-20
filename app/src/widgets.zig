@@ -20,7 +20,7 @@ pub const TextField = struct {
     const Self = @This();
 
     hwnd: win32.HWND,
-    arena: std.heap.ArenaAllocator,
+    allocator: std.mem.Allocator,
     x: i32,
     y: i32,
     width: i32,
@@ -47,7 +47,7 @@ pub const TextField = struct {
 
         return Self{
             .hwnd = hwnd,
-            .arena = std.heap.ArenaAllocator.init(options.allocator),
+            .allocator = options.allocator,
             .x = options.x,
             .y = options.y,
             .width = options.width,
@@ -62,9 +62,8 @@ pub const TextField = struct {
     }
 
     pub fn setText(self: *Self, text: []const u8) void {
-        const allocator = self.arena.allocator();
-        const wide = std.unicode.utf8ToUtf16LeWithNull(allocator, text) catch return; // invalid utf8 or not enough memory
-        defer allocator.free(wide);
+        const wide = std.unicode.utf8ToUtf16LeWithNull(self.allocator, text) catch return; // invalid utf8 or not enough memory
+        defer self.allocator.free(wide);
 
         if (win32.SetWindowTextW(self.hwnd, wide) == 0) {
             std.os.windows.unexpectedError(win32.GetLastError()) catch {};
@@ -76,15 +75,13 @@ pub const TextField = struct {
     }
 
     pub fn getText(self: *Self) [:0]const u8 {
-        const allocator = self.arena.allocator();
-
         const len = self.getTextLength();
-        var buf = allocator.allocSentinel(u16, @intCast(usize, len), 0) catch unreachable; // TODO return error
-        defer allocator.free(buf);
+        var buf = self.allocator.allocSentinel(u16, @intCast(usize, len), 0) catch unreachable; // TODO return error
+        defer self.allocator.free(buf);
 
         const realLen = @intCast(usize, win32.GetWindowTextW(self.hwnd, buf.ptr, len + 1));
         const utf16Slice = buf[0..realLen];
-        const text = std.unicode.utf16leToUtf8AllocZ(allocator, utf16Slice) catch unreachable; // TODO return error
+        const text = std.unicode.utf16leToUtf8AllocZ(self.allocator, utf16Slice) catch unreachable; // TODO return error
         return text;
     }
 

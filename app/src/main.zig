@@ -1,6 +1,8 @@
 const std = @import("std");
 const win32 = @import("win32.zig");
 
+const calculator = @import("calculator");
+
 const widgets = @import("widgets.zig");
 const gui = @import("gui.zig");
 const Application = gui.Application;
@@ -22,6 +24,9 @@ var row_count: u30 = 0;
 
 pub fn main() !void {
     defer _ = gpa.deinit();
+
+    calculator.init(gpa.allocator());
+    defer calculator.deinit();
 
     calculator_rows = std.ArrayList(widgets.CalculatorRow).init(gpa.allocator());
     defer calculator_rows.deinit();
@@ -49,10 +54,28 @@ pub fn paint(paint_context: *const gui.PaintContext) void {
 /// intercepting every message before it gets delivered to the correct window.
 /// This allows us to catch key down messages, as they would otherwise only reach
 /// the edit control.
+var control_down = false;
 fn preWndProc(msg: *const win32.MSG) void {
     if (msg.message == win32.WM_KEYDOWN) {
         switch (msg.wParam) {
             win32.VK_RETURN => {
+                const current_row = &calculator_rows.items[calculator_row_index];
+                const equation_text = current_row.input_text_field.getText();
+                defer gpa.allocator().free(equation_text);
+
+                if (equation_text.len != 0) {
+                    const result = calculator.calculate(equation_text) catch |err| @errorName(err);
+                    if (result != null) {
+                        current_row.output_text_field.setText(result.?);
+                        gpa.allocator().free(result.?);
+                    } else {
+                        current_row.output_text_field.setText("Defined!");
+                    }
+                } else current_row.output_text_field.setText("");
+
+                // If control is held, stay in the same row
+                if (control_down) return;
+
                 row_count += 1;
                 calculator_row_index = row_count;
 
@@ -102,8 +125,11 @@ fn preWndProc(msg: *const win32.MSG) void {
                 }
                 calculator_rows.items[calculator_row_index].focus();
             },
+            win32.VK_CONTROL => control_down = true,
             else => std.debug.print("other key\n", .{}),
         }
+    } else if (msg.message == win32.WM_KEYUP) {
+        if (msg.wParam == win32.VK_CONTROL) control_down = false;
     }
 }
 

@@ -14,29 +14,21 @@ const height = 650;
 const screen_height = height - 40; // subtract title bar height
 var app: Application = undefined;
 
-var input_text_area: widgets.TextArea = undefined;
-var output_text_area: widgets.TextArea = undefined;
+var calculator_rows: std.ArrayList(widgets.CalculatorRow) = undefined;
 
 // TODO: - Use dark-mode
 
 pub fn main() !void {
+    defer _ = gpa.deinit();
+
+    calculator_rows = std.ArrayList(widgets.CalculatorRow).init(gpa.allocator());
+    defer calculator_rows.deinit();
+
     app = Application.init();
     try app.createWindow(class_name, "Calculator", width, height, wndProc);
     app.setPaintCallback(paint);
 
-    input_text_area = try app.makeWidget(widgets.TextArea, .{
-        .allocator = gpa.allocator(),
-        .width = 400,
-        .height = screen_height,
-    });
-    input_text_area.setText("Hello Friends! :^)");
-
-    output_text_area = try app.makeWidget(widgets.TextArea, .{
-        .allocator = gpa.allocator(),
-        .x = 400,
-        .width = 235, // take up rest of screen width
-        .height = screen_height,
-    });
+    try calculator_rows.append(try app.makeWidget(widgets.CalculatorRow, .{ .allocator = gpa.allocator() }));
 
     app.startEventLoop();
 }

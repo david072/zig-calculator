@@ -236,10 +236,12 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
                     });
                 }
 
-                var function_equation = try allocator.alloc(AstNode, function_decl.?.equation.len);
-                std.mem.copy(AstNode, function_equation, function_decl.?.equation);
-                // FIXME: Functions should also be able to return numbers with units(?)
+                // FIXME: Do we really need to deep dupe here?
+                // TODO: How can functions use units as parameters and return units?
+                var function_equation = try function_decl.?.deepDupeEquation(allocator);
                 const result = try evaluateNumber(allocator, &function_equation);
+                // function_equation too complex to free here. We just leave it until the parent
+                // arena allocator is destroyed, since we technically don't have to free it
 
                 // Remove previously added variables, since they are no longer defined
                 while (context.variable_declarations.items.len > previousDefinedVariablesSize)

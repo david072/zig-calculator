@@ -45,7 +45,6 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode 
 
     while (deepestNestedGroup != null) {
         const groupResult = try evaluateEquation(allocator, deepestNestedGroup.?.value.children);
-        allocator.free(deepestNestedGroup.?.value.children);
 
         deepestNestedGroup.?.* = groupResult;
 
@@ -97,12 +96,6 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
     } else if (originalEquation.len < 3) return CalculationError.NotEnoughNodes;
 
     var equation = try allocator.dupe(AstNode, originalEquation);
-    defer {
-        if (equation.len > 1) {
-            for (equation) |node| node.free(allocator);
-            allocator.free(equation);
-        }
-    }
 
     try convertUnits(allocator, &equation);
     try evaluatePointCalculations(allocator, &equation);
@@ -247,7 +240,6 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
                 std.mem.copy(AstNode, function_equation, function_decl.?.equation);
                 // FIXME: Functions should also be able to return numbers with units(?)
                 const result = try evaluateNumber(allocator, &function_equation);
-                allocator.free(function_equation);
 
                 // Remove previously added variables, since they are no longer defined
                 while (context.variable_declarations.items.len > previousDefinedVariablesSize)

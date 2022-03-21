@@ -54,11 +54,13 @@ pub fn parse(allocator: std.mem.Allocator, _input: []const u8) ParsingError!?[]A
 }
 
 pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) ParsingError!void {
-    var name = ArrayList(u8).init(allocator);
+    const lasting_allocator = calc_context.lastingAllocator();
+
+    var name = ArrayList(u8).init(lasting_allocator);
     errdefer name.deinit();
 
-    var parameters = try allocator.alloc([]u8, 1);
-    parameters[0] = try allocator.alloc(u8, 1);
+    var parameters = try lasting_allocator.alloc([]u8, 1);
+    parameters[0] = try lasting_allocator.alloc(u8, 1);
     var parameter_index: usize = 0;
     var parameter_item_index: usize = 0;
 
@@ -71,7 +73,7 @@ pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) Parsing
                     try name.append(char);
                 } else {
                     if (parameter_item_index >= parameters[parameter_index].len)
-                        parameters[parameter_index] = try allocator.realloc(parameters[parameter_index], parameters[parameter_index].len + 1);
+                        parameters[parameter_index] = try lasting_allocator.realloc(parameters[parameter_index], parameters[parameter_index].len + 1);
                     parameters[parameter_index][parameter_item_index] = char;
                     parameter_item_index += 1;
                 }
@@ -94,7 +96,7 @@ pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) Parsing
                 const allowed_variables = try getAllowedVariables(allocator, parameters);
                 defer allocator.free(allowed_variables);
 
-                const equation = parseEquation(allocator, input[index + 1 ..], allowed_variables) catch |err| {
+                const equation = parseEquation(lasting_allocator, input[index + 1 ..], allowed_variables) catch |err| {
                     errorIndex += index + 1;
                     return err;
                 };
@@ -109,8 +111,8 @@ pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) Parsing
             ',' => {
                 parameter_index += 1;
                 parameter_item_index = 0;
-                parameters = try allocator.realloc(parameters, parameters.len + 1);
-                parameters[parameter_index] = try allocator.alloc(u8, 1);
+                parameters = try lasting_allocator.realloc(parameters, parameters.len + 1);
+                parameters[parameter_index] = try lasting_allocator.alloc(u8, 1);
             },
             '=' => {
                 // If we reach this, it's a variable declaration,
@@ -120,7 +122,7 @@ pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) Parsing
                 const allowed_variables = try getAllowedVariables(allocator, &[_][]u8{variable_name});
                 defer allocator.free(allowed_variables);
 
-                const equation = parseEquation(allocator, input[i + 1 ..], allowed_variables) catch |err| {
+                const equation = parseEquation(lasting_allocator, input[i + 1 ..], allowed_variables) catch |err| {
                     errorIndex += i + 1;
                     return err;
                 };

@@ -17,13 +17,15 @@ pub fn deinit() void {
 }
 
 pub fn calculate(input: []const u8) !?[]const u8 {
-    const maybe_tree = try parser.parse(allocator, input);
+    // Create a ("one-time use") arena allocator. After the calculation
+    // has finished, this helps freeing all "temporary" memory allocated during parsing
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+
+    const maybe_tree = try parser.parse(arena.allocator(), input);
     if (maybe_tree) |tree| {
         // dumpAst(tree, 0);
-        const result = engine.evaluate(allocator, tree) catch |err| {
-            allocator.free(tree);
-            return err;
-        };
+        const result = try engine.evaluate(arena.allocator(), tree);
 
         var buf: [100]u8 = undefined;
         const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
@@ -32,9 +34,6 @@ pub fn calculate(input: []const u8) !?[]const u8 {
         try formattedResult.appendSlice(number);
         if (result.value.operand.unit != null)
             try formattedResult.appendSlice(try allocator.dupe(u8, result.value.operand.unit.?));
-
-        // Free ast
-        for (tree) |node| node.free(allocator);
 
         return formattedResult.toOwnedSlice();
     }

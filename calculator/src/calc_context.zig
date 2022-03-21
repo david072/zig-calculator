@@ -9,31 +9,23 @@ const VariableDeclaration = struct {
     equation: []ast.AstNode,
 };
 
-var allocator: Allocator = undefined;
+var arena: std.heap.ArenaAllocator = undefined;
 
 pub var function_declarations: ArrayList(ast.FunctionDeclaration) = undefined;
 pub var variable_declarations: ArrayList(VariableDeclaration) = undefined;
 
-pub fn init(alloc: Allocator) void {
-    allocator = alloc;
-    function_declarations = ArrayList(ast.FunctionDeclaration).init(alloc);
-    variable_declarations = ArrayList(VariableDeclaration).init(alloc);
+pub fn init(allocator: Allocator) void {
+    arena = std.heap.ArenaAllocator.init(allocator);
+    function_declarations = ArrayList(ast.FunctionDeclaration).init(arena.allocator());
+    variable_declarations = ArrayList(VariableDeclaration).init(arena.allocator());
+}
+
+pub fn lastingAllocator() Allocator {
+    return arena.allocator();
 }
 
 pub fn deinit() void {
-    for (function_declarations.items) |decl| decl.free(allocator);
-    function_declarations.deinit();
-
-    for (variable_declarations.items) |_, i| freeVariableDeclaration(i);
-    variable_declarations.deinit();
-}
-
-pub fn freeVariableDeclaration(index: usize) void {
-    allocator.free(variable_declarations.items[index].variable_name);
-
-    for (variable_declarations.items[index].equation) |_, i|
-        variable_declarations.items[index].equation[i].free(allocator);
-    allocator.free(variable_declarations.items[index].equation);
+    arena.deinit();
 }
 
 /// Returns wheter `variable_name` is a "standard" variable (e, pi, phi)

@@ -12,13 +12,10 @@ pub fn main() anyerror!void {
     var buf: [100]u8 = undefined;
 
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    calculator.init(gpa.allocator());
+    defer _ = gpa.deinit();
 
-    defer {
-        calculator.deinit();
-        // TODO: Get rid of the fucking memory leaks that are somewhereeeeee
-        _ = gpa.deinit();
-    }
+    calculator.init(gpa.allocator());
+    defer calculator.deinit();
 
     main_loop: while (true) {
         try stdout.print("Equation: ", .{});

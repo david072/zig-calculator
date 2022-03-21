@@ -14,28 +14,6 @@ pub const AstNode = struct {
         operation: Operation,
         unit: []const u8, // Target unit for conversions
     },
-
-    /// Recursively frees all allocated memory inside this struct
-    pub fn free(self: *const AstNode, allocator: Allocator) void {
-        switch (self.nodeType) {
-            .Group => for (self.value.children) |child| child.free(allocator),
-            .FunctionCall => {
-                allocator.free(self.value.function_call.function_name);
-                for (self.value.function_call.parameters) |parameter| {
-                    for (parameter) |p| p.free(allocator);
-                    allocator.free(parameter);
-                }
-                allocator.free(self.value.function_call.parameters);
-            },
-            .VariableReference => allocator.free(self.value.variable_name),
-            .Operand => {
-                if (self.value.operand.unit != null)
-                    allocator.free(self.value.operand.unit.?);
-            },
-            .Unit => allocator.free(self.value.unit),
-            .Separator, .Operator => {},
-        }
-    }
 };
 
 pub const FunctionCall = struct {

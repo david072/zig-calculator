@@ -1,4 +1,4 @@
-app/
+app/lib/
 calculator/src/units.zig
 discord/
 util/

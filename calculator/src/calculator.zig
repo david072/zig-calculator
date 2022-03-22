@@ -32,8 +32,11 @@ pub fn calculate(input: []const u8) !?[]const u8 {
 
         var formattedResult = std.ArrayList(u8).init(allocator);
         try formattedResult.appendSlice(number);
-        if (result.value.operand.unit != null)
-            try formattedResult.appendSlice(try allocator.dupe(u8, result.value.operand.unit.?));
+        if (result.value.operand.unit != null) {
+            const unit = try allocator.dupe(u8, result.value.operand.unit.?);
+            try formattedResult.appendSlice(unit);
+            allocator.free(unit);
+        }
 
         return formattedResult.toOwnedSlice();
     }

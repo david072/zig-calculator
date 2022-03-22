@@ -3,22 +3,38 @@
 
 # Distance
 m_ft = n * 3.281
-ft_m = n / 3.281
-
 m_mi = n / 1609.344
-mi_m = n * 1609.344
+m_in = n / 0.0254
+m_yd = n / 0.9144
 
+ft_m = n / 3.281
 ft_mi = n / 5280
+ft_in = n * 12
+ft_yd = n / 3
+
+mi_m = n * 1609.344
 mi_ft = n * 5280
+mi_in = n * 63360
+mi_yd = n * 1760
+
+in_m = n * 0.0254
+in_ft = n / 12
+in_mi = n / 63360
+in_yd = n / 36
+
+yd_m = n * 0.9144
+yd_ft = n * 3
+yd_mi = n / 1760
+yd_in = n * 36
 
 # Time
 s_min = n / 60
-min_s = n * 60
-
 s_h = n / 3600
-h_s = n * 3600
 
+min_s = n * 60
 min_h = n / 60
+
+h_s = n * 3600
 h_min = n * 60
 
 # Angle
@@ -31,12 +47,12 @@ degC_degF = (n * 9 / 5) + 32
 degF_degC = (n - 32) * 5 / 9
 
 degC_K = n + 273.15
-#K_degC = n - 273.15
+K_degC = n - 273.15
 
 degF_K = (n - 32) * 5 / 9 + 273.15
-#K_degF = (n - 273.15) * 9 / 5 + 32
+K_degF = (n - 273.15) * 9 / 5 + 32
 
-# Weight
+# Mass
 g_lb = n / 453.59237
 lb_g = n * 453.59237
 

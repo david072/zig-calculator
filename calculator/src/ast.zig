@@ -7,7 +7,7 @@ pub const AstNode = struct {
         function_call: FunctionCall,
         nothing: u1,
         operand: struct {
-            number: f32,
+            number: f64,
             unit: ?[]const u8 = null,
         },
         variable_name: []const u8,

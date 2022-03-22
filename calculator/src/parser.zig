@@ -379,7 +379,7 @@ pub fn parseEquation(allocator: std.mem.Allocator, input: []const u8, allowed_va
 /// It ensures `number` is freed, even if `std.fmt.parseFloat` fails.
 /// If the number could not be parsed, it will create a variable reference node
 fn makeOperand(allocator: std.mem.Allocator, number: []const u8, allowed_variables: []const []const u8) ParsingError!AstNode {
-    const number_value = std.fmt.parseFloat(f32, number) catch null;
+    const number_value = std.fmt.parseFloat(f64, number) catch null;
 
     // If number could not be parsed into a number, check if it is a valid variable name
     if (number_value == null) {
@@ -452,7 +452,7 @@ fn getUnitNode(allocator: std.mem.Allocator, unit_with_number: []const u8) !?Ast
         .nodeType = .Operand,
         .value = .{
             .operand = .{
-                .number = try std.fmt.parseFloat(f32, unit_number),
+                .number = try std.fmt.parseFloat(f64, unit_number),
                 .unit = unit.toOwnedSlice(),
             },
         },

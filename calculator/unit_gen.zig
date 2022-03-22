@@ -82,7 +82,7 @@ pub fn generate() !void {
         \\    target_start_index: usize,
         \\};
         \\
-        \\fn normalizeUnits(num: *f32, source_unit: []const u8, target_unit: []const u8) ResultStruct {
+        \\fn normalizeUnits(num: *f64, source_unit: []const u8, target_unit: []const u8) ResultStruct {
         \\    var source_prefix: usize = no_prefix_index;
         \\    var target_prefix: usize = no_prefix_index;
         \\
@@ -110,7 +110,7 @@ pub fn generate() !void {
         \\    }) {
         \\        if (std.mem.eql(u8, target_value, unit_prefixes[index])) break;
         \\        // If we're going up the list (getting to greater "prefix-values"), we want to reduce the value
-        \\        num.* *= if (incrementor > 0) 0.1 else @as(f32, 10);
+        \\        num.* *= if (incrementor > 0) 0.1 else @as(f64, 10);
         \\    }
         \\
         \\    return ResultStruct{ 
@@ -121,8 +121,8 @@ pub fn generate() !void {
     );
 
     _ = try writer.write(
-        \\pub fn convert(number: f32, source_unit: []const u8, target_unit: []const u8) ?f32 {
-        \\    var n: f32 = number;
+        \\pub fn convert(number: f64, source_unit: []const u8, target_unit: []const u8) ?f64 {
+        \\    var n: f64 = number;
         \\    const start_indices = normalizeUnits(&n, source_unit, target_unit);
         \\    const source_start_index = start_indices.source_start_index;
         \\    const target_start_index = start_indices.target_start_index;

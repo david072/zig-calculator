@@ -34,7 +34,7 @@ const CalculationError = error{
 };
 
 /// Helper to convert degrees into radians
-pub inline fn radians(degrees: f32) f32 {
+pub inline fn radians(degrees: f64) f64 {
     return (degrees / 360) * 2 * std.math.pi;
 }
 
@@ -58,7 +58,7 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode 
 
 /// Calls `evaluate`, ensuring the result does not have a unit
 /// If it has one, it will return `CalculationError.UnexpectedUnit`
-fn evaluateNumber(allocator: Allocator, tree: *[]AstNode) CalculationError!f32 {
+fn evaluateNumber(allocator: Allocator, tree: *[]AstNode) CalculationError!f64 {
     const node = try evaluate(allocator, tree.*);
     if (node.value.operand.unit != null) return CalculationError.UnexpectedUnit;
     return node.value.operand.number;
@@ -167,7 +167,7 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
         const function_call = &item.value.function_call;
         const parameter = try evaluateNumber(allocator, &function_call.parameters[0]);
 
-        var result: f32 = blk: {
+        var result: f64 = blk: {
             if (std.mem.eql(u8, function_call.function_name, "sin")) {
                 // sin(param1)
                 break :blk @sin(radians(parameter));
@@ -201,7 +201,7 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
                 // returns param1^param2
                 if (function_call.parameters.len != 2) return CalculationError.WrongParameters;
                 const power = try evaluateNumber(allocator, &function_call.parameters[1]);
-                break :blk std.math.pow(f32, parameter, power);
+                break :blk std.math.pow(f64, parameter, power);
             } else if (std.mem.eql(u8, function_call.function_name, "sqrt")) {
                 // returns square root of param1
                 break :blk @sqrt(parameter);

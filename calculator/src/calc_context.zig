@@ -60,7 +60,7 @@ pub fn isStandardVariable(variable_name: []const u8) bool {
 /// - pi
 /// - phi
 /// Otherwise null, indicating that a user defined variable is meant
-pub fn resolveStandardVariable(variable_name: []const u8) ?f32 {
+pub fn resolveStandardVariable(variable_name: []const u8) ?f64 {
     if (sEql(variable_name, "e")) {
         return std.math.e;
     } else if (sEql(variable_name, "pi")) {

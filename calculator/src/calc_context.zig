@@ -7,6 +7,12 @@ const ast = @import("./ast.zig");
 const VariableDeclaration = struct {
     variable_name: []const u8,
     equation: []ast.AstNode,
+
+    pub fn free(self: *const VariableDeclaration, allocator: Allocator) void {
+        allocator.free(self.variable_name);
+        for (self.equation) |*node| node.free(allocator);
+        allocator.free(self.equation);
+    }
 };
 
 var arena: std.heap.ArenaAllocator = undefined;
@@ -26,6 +32,20 @@ pub fn lastingAllocator() Allocator {
 
 pub fn deinit() void {
     arena.deinit();
+}
+
+pub fn getFunctionDeclarationIndex(name: []const u8) ?usize {
+    for (function_declarations.items) |*decl, i|
+        if (sEql(decl.function_name, name)) return i;
+
+    return null;
+}
+
+pub fn getVariableDeclarationIndex(name: []const u8) ?usize {
+    for (variable_declarations.items) |*decl, i|
+        if (sEql(decl.variable_name, name)) return i;
+
+    return null;
 }
 
 /// Returns wheter `variable_name` is a "standard" variable (e, pi, phi)

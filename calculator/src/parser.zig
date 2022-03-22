@@ -101,11 +101,18 @@ pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) Parsing
                     return err;
                 };
 
+                const function_decl_index = calc_context.getFunctionDeclarationIndex(name.items);
+
                 try calc_context.function_declarations.append(.{
                     .function_name = name.toOwnedSlice(),
                     .parameters = parameters,
                     .equation = equation,
                 });
+
+                if (function_decl_index != null) {
+                    calc_context.function_declarations.items[function_decl_index.?].free(lasting_allocator);
+                    _ = calc_context.function_declarations.swapRemove(function_decl_index.?);
+                }
                 return;
             },
             ',' => {
@@ -127,10 +134,17 @@ pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) Parsing
                     return err;
                 };
 
+                const variable_decl_index = calc_context.getVariableDeclarationIndex(variable_name);
+
                 try calc_context.variable_declarations.append(.{
                     .variable_name = variable_name,
                     .equation = equation,
                 });
+
+                if (variable_decl_index != null) {
+                    calc_context.variable_declarations.items[variable_decl_index.?].free(lasting_allocator);
+                    _ = calc_context.variable_declarations.swapRemove(variable_decl_index.?);
+                }
                 return;
             },
             ' ' => continue,

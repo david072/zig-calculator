@@ -55,8 +55,15 @@ pub fn generate() !void {
 
     _ = try writer.write(
         \\
-        \\// "da" is currently not supported, however we need it as a spacer
-        \\const unit_prefixes = [_][]const u8{"n", "m", "c", "d", "none", "da", "h", "k", "M", "g", "t"};
+        \\// the unit prefixes, laid out in a way so that you can multiply by 10 / 0.1 to get to a unit
+        \\// "__" is a spacer, bridging units that have a greater distance than 1 in the power
+        \\const unit_prefixes = [_][]const u8{"p", "__", "__", "n", "__", "__", "u", "__", "__", "m", "c", "d", "none", "__", "h", "k", "__", "__", "M", "__", "__", "g", "__", "__", "t"};
+        \\const no_prefix_index = blk: {
+        \\    for (unit_prefixes) |*val, i| {
+        \\        if (std.mem.eql(u8, "none", val.*)) break :blk i;
+        \\    }
+        \\    @compileError("No-prefix value \"none\" not found in unit_prefixes");
+        \\};
         \\
         \\fn unitsContains(unit: []const u8) bool {
         \\    for (valid_units) |item|
@@ -76,8 +83,8 @@ pub fn generate() !void {
         \\};
         \\
         \\fn normalizeUnits(num: *f32, source_unit: []const u8, target_unit: []const u8) ResultStruct {
-        \\    var source_prefix: usize = 4;
-        \\    var target_prefix: usize = 4;
+        \\    var source_prefix: usize = no_prefix_index;
+        \\    var target_prefix: usize = no_prefix_index;
         \\
         \\    if (source_unit.len > 1) {
         \\        if (!unitsContains(source_unit))
@@ -107,8 +114,8 @@ pub fn generate() !void {
         \\    }
         \\
         \\    return ResultStruct{ 
-        \\        .source_start_index = if (source_prefix == 4) 0 else 1, 
-        \\        .target_start_index = if (target_prefix == 4) 0 else 1, 
+        \\        .source_start_index = if (source_prefix == no_prefix_index) 0 else 1, 
+        \\        .target_start_index = if (target_prefix == no_prefix_index) 0 else 1, 
         \\    };
         \\}
     );

@@ -56,5 +56,9 @@ K_degF = (n - 273.15) * 9 / 5 + 32
 g_lb = n / 453.59237
 lb_g = n * 453.59237
 
+# Pressure
+Pa_bar = n / 100000
+bar_Pa = n * 100000
+
 # Units that don't have conversions (yet), but should still be included for their multiples (with the prefixes)
-- cal
+- cal, b

@@ -17,6 +17,7 @@ const ParsingError = error{
 
     UnknownVariable,
     UnknownUnit,
+    UnknownDeclaration,
 
     ExpectedParameter,
     ExpectedEqualsSign,
@@ -46,11 +47,40 @@ pub fn parse(allocator: std.mem.Allocator, _input: []const u8) ParsingError!?[]A
             return err;
         };
         return null;
+    } else if (std.mem.startsWith(u8, input, "undef:")) {
+        // Collects the name and removes either a variable or function declaration
+        removeDeclaration(allocator, input[6..]) catch |err| {
+            errorIndex += 6;
+            return err;
+        };
+        return null;
     }
 
     const allowed_variables = try getAllowedVariables(allocator, &[_][]u8{});
     defer allocator.free(allowed_variables);
     return try parseEquation(allocator, input, allowed_variables);
+}
+
+pub fn removeDeclaration(allocator: std.mem.Allocator, input: []const u8) ParsingError!void {
+    var name = ArrayList(u8).init(allocator);
+    errdefer name.deinit();
+
+    for (input) |char| {
+        switch (char) {
+            'a'...'z', '_' => try name.append(char),
+            ' ', '\r', '\n' => continue,
+            else => return ParsingError.InvalidCharacter,
+        }
+    }
+
+    const declaration_name = name.toOwnedSlice();
+    if (calc_context.getFunctionDeclarationIndex(declaration_name)) |index| {
+        _ = calc_context.function_declarations.orderedRemove(index);
+    } else {
+        if (calc_context.getVariableDeclarationIndex(declaration_name)) |index| {
+            _ = calc_context.variable_declarations.orderedRemove(index);
+        } else return ParsingError.UnknownDeclaration;
+    }
 }
 
 pub fn parseDeclaration(allocator: std.mem.Allocator, input: []const u8) ParsingError!void {

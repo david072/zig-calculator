@@ -2,7 +2,7 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
-const ast = @import("./ast.zig");
+const ast = @import("astgen/ast.zig");
 
 const VariableDeclaration = struct {
     variable_name: []const u8,

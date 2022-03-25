@@ -1,9 +1,11 @@
 const std = @import("std");
 
-pub const parser = @import("parser.zig");
+pub const parser = @import("astgen/parser.zig");
 const engine = @import("engine.zig");
 const context = @import("calc_context.zig");
-const ast = @import("ast.zig");
+const ast = @import("astgen/ast.zig");
+
+const tokenizer = @import("astgen/tokenizer.zig");
 
 var allocator: std.mem.Allocator = undefined;
 

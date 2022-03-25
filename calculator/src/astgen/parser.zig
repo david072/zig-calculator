@@ -4,8 +4,8 @@ const ArrayList = std.ArrayList;
 const ast = @import("./ast.zig");
 const AstNode = ast.AstNode;
 
-const calc_context = @import("calc_context.zig");
-const units = @import("units.zig");
+const calc_context = @import("../calc_context.zig");
+const units = @import("../units.zig");
 
 const numbers = "1234567890";
 const letters = "abcdefghijklmnopqrstuvwxyz";

@@ -24,11 +24,19 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
 
+    if (std.mem.startsWith(u8, input, "def:")) {
+        try parser.parseDeclaration(arena.allocator(), input[4..]);
+        return null;
+    } else if (std.mem.startsWith(u8, input, "undef:")) {
+        try parser.parseUnDeclaration(arena.allocator(), input[6..]);
+        return null;
+    }
+
     const tokens = try tokenizer.tokenize(arena.allocator(), input);
     const tree = try parser.parse(arena.allocator(), tokens);
 
-    // if (maybe_tree) |tree| {
     // dumpAst(tree, 0);
+
     const result = try engine.evaluate(arena.allocator(), tree.items);
 
     var buf: [100]u8 = undefined;
@@ -43,11 +51,6 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     }
 
     return formattedResult.toOwnedSlice();
-    // }
-
-    // dumpAst(context.function_declarations.items[0].equation, 0);
-
-    // return null;
 }
 
 fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {

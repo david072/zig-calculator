@@ -148,7 +148,7 @@ pub const Tokenizer = struct {
 
 /// Turns `source` into a slice of tokens.
 /// The result must be freed by the caller.
-const TokenizerError = error{InvalidCharacter} || std.mem.Allocator.Error;
+pub const TokenizerError = error{InvalidCharacter} || std.mem.Allocator.Error;
 pub fn tokenize(allocator: std.mem.Allocator, source: []const u8) TokenizerError![]const Token {
     var tokens = std.ArrayList(Token).init(allocator);
     var tokenizer = Tokenizer{ .source = source };

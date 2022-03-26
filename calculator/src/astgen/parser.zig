@@ -1,7 +1,9 @@
 const std = @import("std");
 const ArrayList = std.ArrayList;
+const Allocator = std.mem.Allocator;
 
 const tokenizer = @import("tokenizer.zig");
+const calc_context = @import("../calc_context.zig");
 
 const ast = @import("ast.zig");
 const AstNode = ast.AstNode;
@@ -9,19 +11,19 @@ const AstNode = ast.AstNode;
 pub const ParsingError = error{
     UnexpectedValue,
     MissingBracket,
-} || std.fmt.ParseFloatError || std.mem.Allocator.Error;
+} || std.fmt.ParseFloatError || Allocator.Error;
 
 pub const Parser = struct {
     const Self = @This();
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     tokens: []const tokenizer.Token,
     result: ArrayList(AstNode),
     last_type: ?tokenizer.TokenType = null,
 
     current_identifier: ?*const tokenizer.Token = null,
 
-    pub fn init(allocator: std.mem.Allocator, tokens: []const tokenizer.Token) Self {
+    pub fn init(allocator: Allocator, tokens: []const tokenizer.Token) Self {
         return Self{
             .allocator = allocator,
             .tokens = tokens,
@@ -171,6 +173,7 @@ pub const Parser = struct {
                 .value = .{ .variable_name = identifier.text },
             };
             try self.result.append(node);
+            self.current_identifier = null;
         }
 
         self.last_type = token.type;
@@ -207,7 +210,95 @@ pub const Parser = struct {
     }
 };
 
-pub fn parse(allocator: std.mem.Allocator, tokens: []const tokenizer.Token) ParsingError!ArrayList(AstNode) {
+pub fn parse(allocator: Allocator, tokens: []const tokenizer.Token) ParsingError!ArrayList(AstNode) {
     var parser = Parser.init(allocator, tokens);
     return parser.parseInternal();
+}
+
+const DeclarationError = error{ MissingEqualSign, UnexpectedSeparator } || tokenizer.TokenizerError || ParsingError;
+
+pub fn parseDeclaration(allocator: Allocator, input: []const u8) DeclarationError!void {
+    const equal_sign_index = std.mem.indexOf(u8, input, "=") orelse return error.MissingEqualSign;
+    const signature = try tokenizer.tokenize(allocator, input[0..equal_sign_index]);
+    const equation = try tokenizer.tokenize(allocator, input[equal_sign_index + 1 ..]);
+
+    const lasting_allocator = calc_context.lastingAllocator();
+
+    var name: ?[]const u8 = null;
+    var parameters = ArrayList([]const u8).init(lasting_allocator);
+
+    var is_function_decl = false;
+    var has_reached_end = false;
+    var expecting_separator = false;
+    for (signature) |*token| {
+        switch (token.type) {
+            .whitespace => continue,
+            .@"(" => is_function_decl = true,
+            .@")" => {
+                if (!is_function_decl) return ParsingError.MissingBracket;
+                has_reached_end = true;
+            },
+            .separator => {
+                if (!expecting_separator) return error.UnexpectedSeparator;
+                expecting_separator = false;
+            },
+            else => {
+                if (has_reached_end) return ParsingError.UnexpectedValue;
+                if (token.type != .identifier) return ParsingError.UnexpectedValue;
+
+                if (name == null) {
+                    name = token.text;
+                    continue;
+                } else if (!is_function_decl) return ParsingError.UnexpectedValue;
+
+                try parameters.append(token.text);
+                expecting_separator = true;
+            },
+        }
+    }
+
+    if (is_function_decl) {
+        var old_index: ?usize = null;
+        if (calc_context.getFunctionDeclarationIndex(name.?)) |i| old_index = i;
+
+        try calc_context.function_declarations.append(.{
+            .function_name = try lasting_allocator.dupe(u8, name.?),
+            .parameters = parameters.toOwnedSlice(),
+            .equation = (try parse(lasting_allocator, equation)).toOwnedSlice(),
+        });
+
+        if (old_index != null)
+            _ = calc_context.function_declarations.swapRemove(old_index.?);
+    } else {
+        var old_index: ?usize = null;
+        if (calc_context.getVariableDeclarationIndex(name.?)) |i| old_index = i;
+
+        try calc_context.variable_declarations.append(.{
+            .variable_name = try lasting_allocator.dupe(u8, name.?),
+            .equation = (try parse(lasting_allocator, equation)).toOwnedSlice(),
+        });
+
+        if (old_index != null)
+            _ = calc_context.variable_declarations.swapRemove(old_index.?);
+    }
+}
+
+pub fn parseUnDeclaration(allocator: Allocator, input: []const u8) error{ UnexpectedCharacter, OutOfMemory }!void {
+    var _name = ArrayList(u8).init(allocator);
+    for (input) |char| {
+        switch (char) {
+            ' ', '\r', '\n' => continue,
+            'a'...'z', 'A'...'Z' => try _name.append(char),
+            else => return error.UnexpectedCharacter,
+        }
+    }
+
+    const name = _name.toOwnedSlice();
+    if (calc_context.getFunctionDeclarationIndex(name)) |i| {
+        calc_context.function_declarations.items[i].free(calc_context.lastingAllocator());
+        _ = calc_context.function_declarations.orderedRemove(i);
+    } else if (calc_context.getVariableDeclarationIndex(name)) |i| {
+        calc_context.variable_declarations.items[i].free(calc_context.lastingAllocator());
+        _ = calc_context.variable_declarations.orderedRemove(i);
+    }
 }

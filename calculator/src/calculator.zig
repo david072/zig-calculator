@@ -24,28 +24,30 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
 
-    const maybe_tree = try parser.parse(arena.allocator(), input);
-    if (maybe_tree) |tree| {
-        // dumpAst(tree, 0);
-        const result = try engine.evaluate(arena.allocator(), tree);
+    const tokens = try tokenizer.tokenize(arena.allocator(), input);
+    const tree = try parser.parse(arena.allocator(), tokens);
 
-        var buf: [100]u8 = undefined;
-        const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
+    // if (maybe_tree) |tree| {
+    // dumpAst(tree, 0);
+    const result = try engine.evaluate(arena.allocator(), tree.items);
 
-        var formattedResult = std.ArrayList(u8).init(allocator);
-        try formattedResult.appendSlice(number);
-        if (result.value.operand.unit != null) {
-            const unit = try allocator.dupe(u8, result.value.operand.unit.?);
-            try formattedResult.appendSlice(unit);
-            allocator.free(unit);
-        }
+    var buf: [100]u8 = undefined;
+    const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
 
-        return formattedResult.toOwnedSlice();
+    var formattedResult = std.ArrayList(u8).init(allocator);
+    try formattedResult.appendSlice(number);
+    if (result.value.operand.unit != null) {
+        const unit = try allocator.dupe(u8, result.value.operand.unit.?);
+        try formattedResult.appendSlice(unit);
+        allocator.free(unit);
     }
+
+    return formattedResult.toOwnedSlice();
+    // }
 
     // dumpAst(context.function_declarations.items[0].equation, 0);
 
-    return null;
+    // return null;
 }
 
 fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {

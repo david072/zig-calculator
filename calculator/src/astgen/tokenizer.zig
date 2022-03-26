@@ -13,6 +13,14 @@ pub const TokenType = enum {
     declaration,
     undeclaration,
     identifier,
+    separator,
+
+    pub fn isOperand(self: *const TokenType) bool {
+        return self.* == .@"+" or
+            self.* == .@"-" or
+            self.* == .@"*" or
+            self.* == .@"/";
+    }
 };
 
 pub const keywords = [_][]const u8{"in"};
@@ -132,6 +140,7 @@ pub const Tokenizer = struct {
             '/' => return .@"/",
             '(' => return .@"(",
             ')' => return .@")",
+            ',' => return .separator,
             else => return null,
         }
     }

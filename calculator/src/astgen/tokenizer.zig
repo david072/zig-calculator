@@ -19,7 +19,8 @@ pub const TokenType = enum {
         return self.* == .@"+" or
             self.* == .@"-" or
             self.* == .@"*" or
-            self.* == .@"/";
+            self.* == .@"/" or
+            self.* == .in;
     }
 };
 
@@ -41,6 +42,7 @@ pub const Tokenizer = struct {
 
     source: []const u8,
     index: usize = 0,
+    last_token_type: ?TokenType = null,
 
     pub fn init(source: []const u8) Self {
         return Self{ .source = source };
@@ -59,15 +61,18 @@ pub const Tokenizer = struct {
                 .text = self.source[start..end],
             };
 
-            if (token_type == .identifier) {
-                inline for (keywords) |kwd| {
-                    if (std.mem.eql(u8, token.text, kwd)) {
-                        token.type = @field(TokenType, kwd);
-                        break;
+            if (self.last_token_type != null and self.last_token_type.? == .whitespace) {
+                if (token_type == .identifier) {
+                    inline for (keywords) |kwd| {
+                        if (std.mem.eql(u8, token.text, kwd)) {
+                            token.type = @field(TokenType, kwd);
+                            break;
+                        }
                     }
                 }
             }
 
+            self.last_token_type = token.type;
             return Result{ .token = token };
         } else {
             return Result{ .invalid_character_index = self.index };

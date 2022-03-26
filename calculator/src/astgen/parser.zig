@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 
 const tokenizer = @import("tokenizer.zig");
 const calc_context = @import("../calc_context.zig");
+const units = @import("../units.zig");
 
 const ast = @import("ast.zig");
 const AstNode = ast.AstNode;
@@ -11,6 +12,7 @@ const AstNode = ast.AstNode;
 pub const ParsingError = error{
     UnexpectedValue,
     MissingBracket,
+    UnknownUnit,
 } || std.fmt.ParseFloatError || Allocator.Error;
 
 pub const Parser = struct {
@@ -19,9 +21,9 @@ pub const Parser = struct {
     allocator: Allocator,
     tokens: []const tokenizer.Token,
     result: ArrayList(AstNode),
-    last_type: ?tokenizer.TokenType = null,
 
     current_identifier: ?*const tokenizer.Token = null,
+    previous_was_operand: bool = true,
 
     pub fn init(allocator: Allocator, tokens: []const tokenizer.Token) Self {
         return Self{
@@ -38,6 +40,7 @@ pub const Parser = struct {
             switch (token.type) {
                 .whitespace => continue,
                 .@"(" => {
+                    self.previous_was_operand = false;
                     if (self.current_identifier != null) {
                         try self.parseFunctionCall(&i);
                         continue;
@@ -47,9 +50,20 @@ pub const Parser = struct {
                 },
                 .@")" => return ParsingError.MissingBracket,
                 .identifier => {
-                    if (self.last_type != null and self.last_type.? == .number) {
+                    if (!self.previous_was_operand) {
+                        if (!units.isUnit(token.text)) return ParsingError.UnknownUnit;
                         self.result.items[self.result.items.len - 1].value.operand.unit = token.text;
                         continue;
+                    } else {
+                        const last_node = &self.result.items[self.result.items.len - 1];
+                        if (last_node.nodeType == .Operator and last_node.value.operation == .Conversion) {
+                            if (!units.isUnit(token.text)) return ParsingError.UnknownUnit;
+                            try self.result.append(.{
+                                .nodeType = .Unit,
+                                .value = .{ .unit = token.text },
+                            });
+                            continue;
+                        }
                     }
 
                     // Identifier is either variable or function call.
@@ -158,16 +172,14 @@ pub const Parser = struct {
     }
 
     fn parseAstNode(self: *Self, token: *const tokenizer.Token) ParsingError!void {
-        if (self.last_type != null) {
-            if (self.last_type == token.type) return ParsingError.UnexpectedValue;
-        }
+        if (self.previous_was_operand == token.type.isOperand()) return ParsingError.UnexpectedValue;
 
         // Handle variable reference
         if (self.current_identifier) |identifier| blk: {
             if (!token.type.isOperand()) break :blk;
-            if (self.last_type != null and !self.last_type.?.isOperand()) break :blk;
+            if (!self.previous_was_operand) break :blk;
 
-            self.last_type = identifier.type;
+            self.previous_was_operand = false;
             const node = AstNode{
                 .nodeType = .VariableReference,
                 .value = .{ .variable_name = identifier.text },
@@ -176,7 +188,7 @@ pub const Parser = struct {
             self.current_identifier = null;
         }
 
-        self.last_type = token.type;
+        self.previous_was_operand = token.type.isOperand();
         try self.result.append(try astNodeFromToken(token));
     }
 
@@ -204,7 +216,10 @@ pub const Parser = struct {
                 .nodeType = .Operator,
                 .value = .{ .operation = .Division },
             },
-            // TODO
+            .in => AstNode{
+                .nodeType = .Operator,
+                .value = .{ .operation = .Conversion },
+            },
             else => unreachable,
         };
     }

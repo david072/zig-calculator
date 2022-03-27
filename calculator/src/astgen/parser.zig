@@ -13,17 +13,22 @@ pub const ParsingError = error{
     UnexpectedValue,
     MissingBracket,
     UnknownUnit,
+    UnknownVariable,
 } || std.fmt.ParseFloatError || Allocator.Error;
 
 pub const Parser = struct {
     const Self = @This();
+    // start is the starting value and should not be used otherwise!
+    const CategorizedTokenType = enum { numberLiteral, operator, other, start };
 
     allocator: Allocator,
     tokens: []const tokenizer.Token,
     result: ArrayList(AstNode),
 
     current_identifier: ?*const tokenizer.Token = null,
-    previous_was_operand: bool = true,
+    last_type: CategorizedTokenType = .start,
+
+    allowed_variables: []const []const u8 = &[_][]const u8{},
 
     pub fn init(allocator: Allocator, tokens: []const tokenizer.Token) Self {
         return Self{
@@ -40,7 +45,7 @@ pub const Parser = struct {
             switch (token.type) {
                 .whitespace => continue,
                 .@"(" => {
-                    self.previous_was_operand = false;
+                    self.last_type = .other;
                     if (self.current_identifier != null) {
                         try self.parseFunctionCall(&i);
                         continue;
@@ -50,11 +55,13 @@ pub const Parser = struct {
                 },
                 .@")" => return ParsingError.MissingBracket,
                 .identifier => {
-                    if (!self.previous_was_operand) {
+                    defer self.last_type = .other;
+
+                    if (self.last_type == .numberLiteral) {
                         if (!units.isUnit(token.text)) return ParsingError.UnknownUnit;
                         self.result.items[self.result.items.len - 1].value.operand.unit = token.text;
                         continue;
-                    } else {
+                    } else if (self.last_type == .operator) {
                         const last_node = &self.result.items[self.result.items.len - 1];
                         if (last_node.nodeType == .Operator and last_node.value.operation == .Conversion) {
                             if (!units.isUnit(token.text)) return ParsingError.UnknownUnit;
@@ -172,24 +179,41 @@ pub const Parser = struct {
     }
 
     fn parseAstNode(self: *Self, token: *const tokenizer.Token) ParsingError!void {
-        if (self.previous_was_operand == token.type.isOperand()) return ParsingError.UnexpectedValue;
+        if (self.last_type == categorizedTokenType(token.type)) return ParsingError.UnexpectedValue;
+        self.last_type = categorizedTokenType(token.type);
 
         // Handle variable reference
-        if (self.current_identifier) |identifier| blk: {
+        if (self.current_identifier) |variable| blk: {
             if (!token.type.isOperand()) break :blk;
-            if (!self.previous_was_operand) break :blk;
+            if (self.last_type != .operator and self.last_type != .start) break :blk;
 
-            self.previous_was_operand = false;
+            // Check if variable is valid
+            var_blk: {
+                if (calc_context.isStandardVariable(variable.text)) break :var_blk;
+                if (calc_context.getVariableDeclarationIndex(variable.text) != null) break :var_blk;
+
+                for (self.allowed_variables) |*v|
+                    if (std.mem.eql(u8, variable.text, v.*)) break :var_blk;
+                break :var_blk return ParsingError.UnknownVariable;
+            }
+
             const node = AstNode{
                 .nodeType = .VariableReference,
-                .value = .{ .variable_name = identifier.text },
+                .value = .{ .variable_name = variable.text },
             };
             try self.result.append(node);
             self.current_identifier = null;
         }
 
-        self.previous_was_operand = token.type.isOperand();
         try self.result.append(try astNodeFromToken(token));
+    }
+
+    fn categorizedTokenType(t: tokenizer.TokenType) CategorizedTokenType {
+        return switch (t) {
+            .number => .numberLiteral,
+            .@"*", .@"+", .@"-", .@"/", .in => .operator,
+            else => .other,
+        };
     }
 
     fn astNodeFromToken(token: *const tokenizer.Token) !AstNode {
@@ -266,7 +290,7 @@ pub fn parseDeclaration(allocator: Allocator, input: []const u8) DeclarationErro
                     continue;
                 } else if (!is_function_decl) return ParsingError.UnexpectedValue;
 
-                try parameters.append(token.text);
+                try parameters.append(try lasting_allocator.dupe(u8, token.text));
                 expecting_separator = true;
             },
         }
@@ -276,10 +300,13 @@ pub fn parseDeclaration(allocator: Allocator, input: []const u8) DeclarationErro
         var old_index: ?usize = null;
         if (calc_context.getFunctionDeclarationIndex(name.?)) |i| old_index = i;
 
+        var parser = Parser.init(lasting_allocator, equation);
+        parser.allowed_variables = parameters.items;
+
         try calc_context.function_declarations.append(.{
             .function_name = try lasting_allocator.dupe(u8, name.?),
             .parameters = parameters.toOwnedSlice(),
-            .equation = (try parse(lasting_allocator, equation)).toOwnedSlice(),
+            .equation = (try parser.parseInternal()).toOwnedSlice(),
         });
 
         if (old_index != null)

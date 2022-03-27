@@ -33,9 +33,10 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     }
 
     const tokens = try tokenizer.tokenize(arena.allocator(), input);
+    // for (tokens) |*token| std.debug.print("{s} -> {s}\n", .{ token.text, token.type });
     const tree = try parser.parse(arena.allocator(), tokens);
 
-    // dumpAst(tree, 0);
+    // dumpAst(tree.items, 0);
 
     const result = try engine.evaluate(arena.allocator(), tree.items);
 

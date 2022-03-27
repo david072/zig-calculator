@@ -24,9 +24,6 @@ const CalculationError = error{
 
     UnknownVariable,
 
-    // This error should never occur!!
-    InvalidOperand,
-
     /// Allocation error
     OutOfMemory,
 
@@ -302,7 +299,7 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
         const operator = equation.*[index + 1].value.operation;
 
         switch (operator) {
-            .Multiplication, .Division => {
+            .Multiplication, .Division, .Power => {
                 const lhs = &equation.*[index];
                 const rhs = &equation.*[index + 2];
 
@@ -311,8 +308,8 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
                 switch (operator) {
                     .Multiplication => lhs.value.operand.number *= rhs.value.operand.number,
                     .Division => lhs.value.operand.number /= rhs.value.operand.number,
-                    // This should never occur!!
-                    else => return CalculationError.InvalidOperand,
+                    .Power => lhs.value.operand.number = std.math.pow(f64, lhs.value.operand.number, rhs.value.operand.number),
+                    else => unreachable,
                 }
 
                 // Remove the next operator and operand

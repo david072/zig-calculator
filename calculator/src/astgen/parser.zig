@@ -184,7 +184,7 @@ pub const Parser = struct {
 
         // Handle variable reference
         if (self.current_identifier) |variable| blk: {
-            if (!token.type.isOperand()) break :blk;
+            if (!token.type.isOperator()) break :blk;
             if (self.last_type != .operator and self.last_type != .start) break :blk;
 
             // Check if variable is valid
@@ -211,7 +211,7 @@ pub const Parser = struct {
     fn categorizedTokenType(t: tokenizer.TokenType) CategorizedTokenType {
         return switch (t) {
             .number => .numberLiteral,
-            .@"*", .@"+", .@"-", .@"/", .in => .operator,
+            .@"*", .@"+", .@"-", .@"/", .in, .@"^" => .operator,
             else => .other,
         };
     }
@@ -243,6 +243,10 @@ pub const Parser = struct {
             .in => AstNode{
                 .nodeType = .Operator,
                 .value = .{ .operation = .Conversion },
+            },
+            .@"^" => AstNode{
+                .nodeType = .Operator,
+                .value = .{ .operation = .Power },
             },
             else => unreachable,
         };

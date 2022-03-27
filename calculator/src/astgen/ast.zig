@@ -161,4 +161,5 @@ pub const Operation = enum {
     Multiplication,
     Division,
     Conversion,
+    Power,
 };

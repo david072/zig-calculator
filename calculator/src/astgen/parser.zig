@@ -38,7 +38,7 @@ pub const Parser = struct {
         };
     }
 
-    pub fn parseInternal(self: *Self) ParsingError!ArrayList(AstNode) {
+    pub fn parseInternal(self: *Self) ParsingError![]AstNode {
         var i: usize = 0;
         while (i < self.tokens.len) : (i += 1) {
             const token = &self.tokens[i];
@@ -89,7 +89,7 @@ pub const Parser = struct {
             try self.result.append(node);
         }
 
-        return self.result;
+        return self.result.toOwnedSlice();
     }
 
     fn parseFunctionCall(self: *Self, index: *usize) ParsingError!void {
@@ -104,7 +104,7 @@ pub const Parser = struct {
             switch (self.tokens[index.*].type) {
                 .separator => {
                     const parameter_tokens = self.tokens[start_index..index.*];
-                    const nodes = (try parse(self.allocator, parameter_tokens)).toOwnedSlice();
+                    const nodes = try parseWithVariables(self.allocator, parameter_tokens, self.allowed_variables);
                     if (parameter_index >= parameters.len)
                         parameters = try self.allocator.realloc(parameters, parameters.len + 1);
 
@@ -119,7 +119,7 @@ pub const Parser = struct {
                     }
 
                     const parameter_tokens = self.tokens[start_index..index.*];
-                    const nodes = (try parse(self.allocator, parameter_tokens)).toOwnedSlice();
+                    const nodes = try parseWithVariables(self.allocator, parameter_tokens, self.allowed_variables);
                     if (parameter_index >= parameters.len)
                         parameters = try self.allocator.realloc(parameters, parameters.len + 1);
 
@@ -169,7 +169,7 @@ pub const Parser = struct {
         if (end_index == null) return ParsingError.MissingBracket;
 
         const group_content = self.tokens[start_index..end_index.?];
-        const nodes = (try parse(self.allocator, group_content)).toOwnedSlice();
+        const nodes = try parseWithVariables(self.allocator, group_content, self.allowed_variables);
         const group_node = AstNode{
             .nodeType = .Group,
             .value = .{ .children = nodes },
@@ -249,8 +249,14 @@ pub const Parser = struct {
     }
 };
 
-pub fn parse(allocator: Allocator, tokens: []const tokenizer.Token) ParsingError!ArrayList(AstNode) {
+pub fn parse(allocator: Allocator, tokens: []const tokenizer.Token) ParsingError![]AstNode {
     var parser = Parser.init(allocator, tokens);
+    return parser.parseInternal();
+}
+
+pub fn parseWithVariables(allocator: Allocator, tokens: []const tokenizer.Token, variables: []const []const u8) ParsingError![]AstNode {
+    var parser = Parser.init(allocator, tokens);
+    parser.allowed_variables = variables;
     return parser.parseInternal();
 }
 
@@ -300,13 +306,10 @@ pub fn parseDeclaration(allocator: Allocator, input: []const u8) DeclarationErro
         var old_index: ?usize = null;
         if (calc_context.getFunctionDeclarationIndex(name.?)) |i| old_index = i;
 
-        var parser = Parser.init(lasting_allocator, equation);
-        parser.allowed_variables = parameters.items;
-
         try calc_context.function_declarations.append(.{
             .function_name = try lasting_allocator.dupe(u8, name.?),
             .parameters = parameters.toOwnedSlice(),
-            .equation = (try parser.parseInternal()).toOwnedSlice(),
+            .equation = try parseWithVariables(allocator, equation, parameters.items),
         });
 
         if (old_index != null)
@@ -317,7 +320,7 @@ pub fn parseDeclaration(allocator: Allocator, input: []const u8) DeclarationErro
 
         try calc_context.variable_declarations.append(.{
             .variable_name = try lasting_allocator.dupe(u8, name.?),
-            .equation = (try parse(lasting_allocator, equation)).toOwnedSlice(),
+            .equation = try parse(lasting_allocator, equation),
         });
 
         if (old_index != null)

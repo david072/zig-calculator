@@ -299,7 +299,7 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
         const operator = equation.*[index + 1].value.operation;
 
         switch (operator) {
-            .Multiplication, .Division, .Power => {
+            .Multiplication, .Division, .Power, .PowerOfTen => {
                 const lhs = &equation.*[index];
                 const rhs = &equation.*[index + 2];
 
@@ -309,6 +309,7 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
                     .Multiplication => lhs.value.operand.number *= rhs.value.operand.number,
                     .Division => lhs.value.operand.number /= rhs.value.operand.number,
                     .Power => lhs.value.operand.number = std.math.pow(f64, lhs.value.operand.number, rhs.value.operand.number),
+                    .PowerOfTen => lhs.value.operand.number *= std.math.pow(f64, 10, rhs.value.operand.number),
                     else => unreachable,
                 }
 

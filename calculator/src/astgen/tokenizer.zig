@@ -4,6 +4,7 @@ pub const TokenType = enum {
     whitespace,
     number,
     in,
+    e,
     @"+",
     @"-",
     @"*",
@@ -18,13 +19,13 @@ pub const TokenType = enum {
 
     pub fn isOperator(self: TokenType) bool {
         return switch (self) {
-            .@"+", .@"-", .@"*", .@"/", .in, .@"^" => true,
+            .@"+", .@"-", .@"*", .@"/", .in, .@"^", .e => true,
             else => false,
         };
     }
 };
 
-pub const keywords = [_][]const u8{"in"};
+pub const keywords = [_][]const u8{ "in", "e" };
 
 pub const Token = struct {
     type: TokenType,
@@ -61,13 +62,17 @@ pub const Tokenizer = struct {
                 .text = self.source[start..end],
             };
 
-            if (self.last_token_type != null and self.last_token_type.? == .whitespace) {
-                if (token_type == .identifier) {
-                    inline for (keywords) |kwd| {
-                        if (std.mem.eql(u8, token.text, kwd)) {
-                            token.type = @field(TokenType, kwd);
-                            break;
-                        }
+            if (token_type == .identifier) blk: {
+                if (std.mem.eql(u8, self.source[start..end], "in")) {
+                    if (self.last_token_type != null and self.last_token_type.? == .whitespace)
+                        token.type = TokenType.in;
+                    break :blk;
+                }
+
+                inline for (keywords) |kwd| {
+                    if (std.mem.eql(u8, token.text, kwd)) {
+                        token.type = @field(TokenType, kwd);
+                        break;
                     }
                 }
             }
@@ -119,6 +124,7 @@ pub const Tokenizer = struct {
     const whitespace_class = anyOf(" \r\n\t");
     /// unit / function / variable name (or other invalid word)
     const identifier_class = anyOf("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789");
+    const letter_class = anyOf("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
     const digit_class = anyOf("0123456789.");
 
     fn nextInternal(self: *Self) ?TokenType {
@@ -136,6 +142,11 @@ pub const Tokenizer = struct {
                 return .number;
             },
             'a'...'z', 'A'...'Z' => {
+                if (character == 'e' or character == 'E') {
+                    if (!self.accept(letter_class))
+                        return .e;
+                }
+
                 while (self.accept(identifier_class)) {}
                 return .identifier;
             },

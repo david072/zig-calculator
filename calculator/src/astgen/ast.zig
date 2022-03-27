@@ -162,4 +162,5 @@ pub const Operation = enum {
     Division,
     Conversion,
     Power,
+    PowerOfTen,
 };

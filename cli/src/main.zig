@@ -34,9 +34,8 @@ pub fn main() anyerror!void {
 
         if (shouldExit(input)) break :main_loop;
 
-        // const result = try calculator.calculate(input);
         const result = calculator.calculate(input) catch |err| {
-            try showErrorPos(&stdout, 10, calculator.parser.errorIndex, err);
+            try stdout.print("Error: {s}\n", .{@errorName(err)});
             continue :main_loop;
         };
         if (result != null) {

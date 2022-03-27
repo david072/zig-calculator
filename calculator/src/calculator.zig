@@ -1,9 +1,11 @@
 const std = @import("std");
 
-pub const parser = @import("parser.zig");
+pub const parser = @import("astgen/parser.zig");
 const engine = @import("engine.zig");
 const context = @import("calc_context.zig");
-const ast = @import("ast.zig");
+const ast = @import("astgen/ast.zig");
+
+const tokenizer = @import("astgen/tokenizer.zig");
 
 var allocator: std.mem.Allocator = undefined;
 
@@ -22,28 +24,34 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
 
-    const maybe_tree = try parser.parse(arena.allocator(), input);
-    if (maybe_tree) |tree| {
-        // dumpAst(tree, 0);
-        const result = try engine.evaluate(arena.allocator(), tree);
-
-        var buf: [100]u8 = undefined;
-        const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
-
-        var formattedResult = std.ArrayList(u8).init(allocator);
-        try formattedResult.appendSlice(number);
-        if (result.value.operand.unit != null) {
-            const unit = try allocator.dupe(u8, result.value.operand.unit.?);
-            try formattedResult.appendSlice(unit);
-            allocator.free(unit);
-        }
-
-        return formattedResult.toOwnedSlice();
+    if (std.mem.startsWith(u8, input, "def:")) {
+        try parser.parseDeclaration(arena.allocator(), input[4..]);
+        return null;
+    } else if (std.mem.startsWith(u8, input, "undef:")) {
+        try parser.parseUnDeclaration(arena.allocator(), input[6..]);
+        return null;
     }
 
-    // dumpAst(context.function_declarations.items[0].equation, 0);
+    const tokens = try tokenizer.tokenize(arena.allocator(), input);
+    // for (tokens) |*token| std.debug.print("{s} -> {s}\n", .{ token.text, token.type });
+    const tree = try parser.parse(arena.allocator(), tokens);
 
-    return null;
+    // dumpAst(tree.items, 0);
+
+    const result = try engine.evaluate(arena.allocator(), tree);
+
+    var buf: [100]u8 = undefined;
+    const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
+
+    var formattedResult = std.ArrayList(u8).init(allocator);
+    try formattedResult.appendSlice(number);
+    if (result.value.operand.unit != null) {
+        const unit = try allocator.dupe(u8, result.value.operand.unit.?);
+        try formattedResult.appendSlice(unit);
+        allocator.free(unit);
+    }
+
+    return formattedResult.toOwnedSlice();
 }
 
 fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {

@@ -110,6 +110,17 @@ pub const FunctionCall = struct {
     }
 };
 
+pub const VariableDeclaration = struct {
+    variable_name: []const u8,
+    equation: []AstNode,
+
+    pub fn free(self: *const VariableDeclaration, allocator: Allocator) void {
+        allocator.free(self.variable_name);
+        for (self.equation) |*node| node.free(allocator);
+        allocator.free(self.equation);
+    }
+};
+
 pub const FunctionDeclaration = struct {
     function_name: []const u8,
     parameters: []const []const u8,

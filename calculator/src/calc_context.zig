@@ -2,18 +2,8 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
-const ast = @import("./ast.zig");
-
-const VariableDeclaration = struct {
-    variable_name: []const u8,
-    equation: []ast.AstNode,
-
-    pub fn free(self: *const VariableDeclaration, allocator: Allocator) void {
-        allocator.free(self.variable_name);
-        for (self.equation) |*node| node.free(allocator);
-        allocator.free(self.equation);
-    }
-};
+const ast = @import("astgen/ast.zig");
+const VariableDeclaration = ast.VariableDeclaration;
 
 var arena: std.heap.ArenaAllocator = undefined;
 

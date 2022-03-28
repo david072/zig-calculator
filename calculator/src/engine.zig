@@ -211,6 +211,26 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
             } else if (std.mem.eql(u8, function_call.function_name, "ceil")) {
                 // returns ceiled value of param1
                 break :blk std.math.ceil(parameter);
+            } else if (std.mem.eql(u8, function_call.function_name, "max")) {
+                if (function_call.parameters.len != 2) return CalculationError.WrongParameters;
+                const parameter_2 = try evaluateNumber(allocator, &function_call.parameters[1]);
+                break :blk std.math.max(parameter, parameter_2);
+            } else if (std.mem.eql(u8, function_call.function_name, "min")) {
+                if (function_call.parameters.len != 2) return CalculationError.WrongParameters;
+                const parameter_2 = try evaluateNumber(allocator, &function_call.parameters[1]);
+                break :blk std.math.min(parameter, parameter_2);
+            } else if (std.mem.eql(u8, function_call.function_name, "clamp")) {
+                if (function_call.parameters.len != 3) return CalculationError.WrongParameters;
+                const lower = try evaluateNumber(allocator, &function_call.parameters[1]);
+                const upper = try evaluateNumber(allocator, &function_call.parameters[2]);
+                break :blk std.math.clamp(parameter, lower, upper);
+            } else if (std.mem.eql(u8, function_call.function_name, "map")) {
+                if (function_call.parameters.len != 5) return CalculationError.WrongParameters;
+                const A = try evaluateNumber(allocator, &function_call.parameters[1]);
+                const B = try evaluateNumber(allocator, &function_call.parameters[2]);
+                const a = try evaluateNumber(allocator, &function_call.parameters[3]);
+                const b = try evaluateNumber(allocator, &function_call.parameters[4]);
+                break :blk (parameter - A) * (b - a) / (B - A) + a;
             } else {
                 // user defined function
                 const function_decl = allowed_blk: {

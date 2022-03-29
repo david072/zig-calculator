@@ -209,9 +209,10 @@ pub const Parser = struct {
     }
 
     fn categorizedTokenType(t: tokenizer.TokenType) CategorizedTokenType {
+        if (t.isOperator()) return .operator;
+
         return switch (t) {
             .number => .numberLiteral,
-            .@"*", .@"+", .@"-", .@"/", .in, .@"^", .e => .operator,
             else => .other,
         };
     }
@@ -251,6 +252,22 @@ pub const Parser = struct {
             .e => AstNode{
                 .nodeType = .Operator,
                 .value = .{ .operation = .PowerOfTen },
+            },
+            .@"&" => AstNode{
+                .nodeType = .Operator,
+                .value = .{ .operation = .BitwiseAnd },
+            },
+            .@"|" => AstNode{
+                .nodeType = .Operator,
+                .value = .{ .operation = .BitwiseOr },
+            },
+            .@">>" => AstNode{
+                .nodeType = .Operator,
+                .value = .{ .operation = .BitShiftRight },
+            },
+            .@"<<" => AstNode{
+                .nodeType = .Operator,
+                .value = .{ .operation = .BitShiftLeft },
             },
             else => unreachable,
         };

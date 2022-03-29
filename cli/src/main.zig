@@ -2,7 +2,7 @@ const std = @import("std");
 
 const calculator = @import("calculator");
 
-const allowedCharacters = "+-*/=.,()_:^0123456789abcdefghijklmnopqrstuvwxyz\n\r ";
+const allowedCharacters = "+-*/=.,()_:^&|<>0123456789abcdefghijklmnopqrstuvwxyz\n\r ";
 const exitInput = "exit";
 
 pub fn main() anyerror!void {

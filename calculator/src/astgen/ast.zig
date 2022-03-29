@@ -163,4 +163,8 @@ pub const Operation = enum {
     Conversion,
     Power,
     PowerOfTen,
+    BitwiseAnd,
+    BitwiseOr,
+    BitShiftRight,
+    BitShiftLeft,
 };

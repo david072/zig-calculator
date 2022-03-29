@@ -12,6 +12,10 @@ pub const TokenType = enum {
     @"(",
     @")",
     @"^",
+    @"&",
+    @"|",
+    @">>",
+    @"<<",
     declaration,
     undeclaration,
     identifier,
@@ -19,7 +23,7 @@ pub const TokenType = enum {
 
     pub fn isOperator(self: TokenType) bool {
         return switch (self) {
-            .@"+", .@"-", .@"*", .@"/", .in, .@"^", .e => true,
+            .@"+", .@"-", .@"*", .@"/", .in, .@"^", .e, .@"&", .@"|", .@">>", .@"<<" => true,
             else => false,
         };
     }
@@ -169,6 +173,16 @@ pub const Tokenizer = struct {
             '(' => return .@"(",
             ')' => return .@")",
             '^' => return .@"^",
+            '&' => return .@"&",
+            '|' => return .@"|",
+            '>' => {
+                if (!self.accept(anyOf(">"))) return null;
+                return .@">>";
+            },
+            '<' => {
+                if (!self.accept(anyOf("<"))) return null;
+                return .@"<<";
+            },
             ',' => return .separator,
             else => return null,
         }

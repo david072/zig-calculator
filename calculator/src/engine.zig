@@ -322,7 +322,15 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
         const operator = equation.*[index + 1].value.operation;
 
         switch (operator) {
-            .Multiplication, .Division, .Power, .PowerOfTen => {
+            .Multiplication,
+            .Division,
+            .Power,
+            .PowerOfTen,
+            .BitwiseAnd,
+            .BitwiseOr,
+            .BitShiftRight,
+            .BitShiftLeft,
+            => {
                 const lhs = &equation.*[index];
                 const rhs = &equation.*[index + 2];
 
@@ -333,6 +341,10 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
                     .Division => lhs.value.operand.number /= rhs.value.operand.number,
                     .Power => lhs.value.operand.number = std.math.pow(f64, lhs.value.operand.number, rhs.value.operand.number),
                     .PowerOfTen => lhs.value.operand.number *= std.math.pow(f64, 10, rhs.value.operand.number),
+                    .BitwiseAnd => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) & @floatToInt(i64, rhs.value.operand.number)),
+                    .BitwiseOr => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) | @floatToInt(i64, rhs.value.operand.number)),
+                    .BitShiftRight => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) >> @floatToInt(u6, rhs.value.operand.number)),
+                    .BitShiftLeft => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) << @floatToInt(u6, rhs.value.operand.number)),
                     else => unreachable,
                 }
 

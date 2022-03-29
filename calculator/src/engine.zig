@@ -128,7 +128,7 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
 /// Converts all `AstNodes` with type `VariableReference` into an operand by evaluating the variable value.
 /// It will return `CalculationError.UnknownVariable` if a variable is not in the `context.variable_declarations` list.
 fn expandVariables(allocator: Allocator, tree: []AstNode) CalculationError!void {
-    for (tree) |item, i| {
+    for (tree) |*item, i| {
         if (item.nodeType != .VariableReference) continue;
 
         // Handle standard variables (e.g. e, pi)
@@ -280,7 +280,7 @@ fn convertUnits(allocator: Allocator, equation: *[]AstNode) CalculationError!voi
     var index: usize = 0;
     while (index < equation.len) {
         const operation = equation.*[index + 1];
-        if (operation.nodeType != .Operator and operation.value.operation != .Conversion) {
+        if (operation.nodeType == .Operator and operation.value.operation != .Conversion) {
             if (index + 4 >= equation.len) break;
             index += 2;
             continue;

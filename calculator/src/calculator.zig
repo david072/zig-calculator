@@ -36,7 +36,7 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     // for (tokens) |*token| std.debug.print("{s} -> {s}\n", .{ token.text, token.type });
     const tree = try parser.parse(arena.allocator(), tokens);
 
-    // dumpAst(tree.items, 0);
+    // dumpAst(tree, 0);
 
     const result = try engine.evaluate(arena.allocator(), tree);
     context.setLastValue(&result);
@@ -73,7 +73,12 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
             },
             .Operand => std.debug.print("   number: {d}, unit: {s}\n", .{ item.value.operand.number, item.value.operand.unit }),
             .Operator => std.debug.print("   operation: {s}\n", .{item.value.operation}),
-            .FunctionCall => std.debug.print("   function: name: {s}, parameters: {s}\n", .{ item.value.function_call.function_name, item.value.function_call.parameters }),
+            .FunctionCall => {
+                std.debug.print("   function: name: {s},\nparameters:\n", .{item.value.function_call.function_name});
+                for (item.value.function_call.parameters) |*p| {
+                    dumpAst(p.*, nestingLevel + 1);
+                }
+            },
             .VariableReference => std.debug.print("   variable: {s}\n", .{item.value.variable_name}),
             .Unit => std.debug.print("   unit: {s}\n", .{item.value.unit}),
             .Separator => unreachable,

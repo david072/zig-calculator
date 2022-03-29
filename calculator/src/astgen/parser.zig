@@ -314,10 +314,11 @@ pub fn parseDeclaration(allocator: Allocator, input: []const u8) DeclarationErro
         var old_index: ?usize = null;
         if (calc_context.getFunctionDeclarationIndex(name.?)) |i| old_index = i;
 
+        const eq = try parseWithVariables(lasting_allocator, equation, parameters.items);
         try calc_context.function_declarations.append(.{
             .function_name = try lasting_allocator.dupe(u8, name.?),
             .parameters = parameters.toOwnedSlice(),
-            .equation = try parseWithVariables(allocator, equation, parameters.items),
+            .equation = eq,
         });
 
         if (old_index != null)

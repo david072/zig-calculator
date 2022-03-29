@@ -39,6 +39,7 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     // dumpAst(tree.items, 0);
 
     const result = try engine.evaluate(arena.allocator(), tree);
+    context.setLastValue(&result);
 
     var buf: [100]u8 = undefined;
     const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});

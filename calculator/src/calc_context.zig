@@ -10,6 +10,13 @@ var arena: std.heap.ArenaAllocator = undefined;
 pub var function_declarations: ArrayList(ast.FunctionDeclaration) = undefined;
 pub var variable_declarations: ArrayList(VariableDeclaration) = undefined;
 
+pub var last_value: ast.AstNode = .{
+    .nodeType = .Operand,
+    .value = .{
+        .operand = .{ .number = 0 },
+    },
+};
+
 pub fn init(allocator: Allocator) void {
     arena = std.heap.ArenaAllocator.init(allocator);
     function_declarations = ArrayList(ast.FunctionDeclaration).init(arena.allocator());
@@ -20,7 +27,16 @@ pub fn lastingAllocator() Allocator {
     return arena.allocator();
 }
 
+pub fn setLastValue(node: *const ast.AstNode) void {
+    const new_val = node.deepDupe(lastingAllocator()) catch null;
+    if (new_val != null) {
+        last_value.free(lastingAllocator());
+        last_value = new_val.?;
+    }
+}
+
 pub fn deinit() void {
+    last_value.free(arena.allocator());
     arena.deinit();
 }
 

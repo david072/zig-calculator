@@ -136,6 +136,9 @@ fn expandVariables(allocator: Allocator, tree: []AstNode) CalculationError!void 
             tree[i].nodeType = .Operand;
             tree[i].value = .{ .operand = .{ .number = value } };
             return;
+        } else if (std.mem.eql(u8, item.value.variable_name, "ans")) {
+            tree[i] = try context.last_value.deepDupe(allocator);
+            return;
         }
 
         // Otherwise look for user defined variable

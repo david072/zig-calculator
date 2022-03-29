@@ -218,58 +218,34 @@ pub const Parser = struct {
     }
 
     fn astNodeFromToken(token: *const tokenizer.Token) !AstNode {
-        return switch (token.type) {
-            .number => AstNode{
+        if (token.type == .number) {
+            std.debug.print("number\n", .{});
+            return AstNode{
                 .nodeType = .Operand,
                 .value = .{
                     .operand = .{ .number = try std.fmt.parseFloat(f64, token.text) },
                 },
+            };
+        }
+
+        return AstNode{
+            .nodeType = .Operator,
+            .value = .{
+                .operation = switch (token.type) {
+                    .@"+" => .Addition,
+                    .@"-" => .Subtraction,
+                    .@"*" => .Multiplication,
+                    .@"/" => .Division,
+                    .in => .Conversion,
+                    .@"^" => .Power,
+                    .e => .PowerOfTen,
+                    .@"&" => .BitwiseAnd,
+                    .@"|" => .BitwiseOr,
+                    .@">>" => .BitShiftRight,
+                    .@"<<" => .BitShiftLeft,
+                    else => unreachable,
+                },
             },
-            .@"+" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .Addition },
-            },
-            .@"-" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .Subtraction },
-            },
-            .@"*" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .Multiplication },
-            },
-            .@"/" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .Division },
-            },
-            .in => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .Conversion },
-            },
-            .@"^" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .Power },
-            },
-            .e => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .PowerOfTen },
-            },
-            .@"&" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .BitwiseAnd },
-            },
-            .@"|" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .BitwiseOr },
-            },
-            .@">>" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .BitShiftRight },
-            },
-            .@"<<" => AstNode{
-                .nodeType = .Operator,
-                .value = .{ .operation = .BitShiftLeft },
-            },
-            else => unreachable,
         };
     }
 };

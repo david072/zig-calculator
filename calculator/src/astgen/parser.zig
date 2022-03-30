@@ -14,6 +14,7 @@ pub const ParsingError = error{
     MissingBracket,
     UnknownUnit,
     UnknownVariable,
+    UnexpectedModifier,
 } || std.fmt.ParseFloatError || Allocator.Error;
 
 pub const Parser = struct {
@@ -76,6 +77,10 @@ pub const Parser = struct {
                     // Identifier is either variable or function call.
                     // We need to continue however, to find out which one was meant.
                     self.current_identifier = token;
+                },
+                .@"!" => {
+                    if (self.last_type != .numberLiteral) return ParsingError.UnexpectedModifier;
+                    self.result.items[self.result.items.len - 1].value.operand.modifier = .Factorial;
                 },
                 else => try self.parseAstNode(token),
             }
@@ -219,7 +224,6 @@ pub const Parser = struct {
 
     fn astNodeFromToken(token: *const tokenizer.Token) !AstNode {
         if (token.type == .number) {
-            std.debug.print("number\n", .{});
             return AstNode{
                 .nodeType = .Operand,
                 .value = .{

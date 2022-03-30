@@ -42,7 +42,7 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     context.setLastValue(&result);
 
     var buf: [100]u8 = undefined;
-    const number = try std.fmt.bufPrint(&buf, "{d}", .{result.value.operand.number});
+    const number = try std.fmt.bufPrint(&buf, "{d}", .{result.getNumberValue()});
 
     var formattedResult = std.ArrayList(u8).init(allocator);
     try formattedResult.appendSlice(number);
@@ -71,7 +71,7 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
                 std.debug.print("   children: {d}\n", .{item.value.children.len});
                 dumpAst(item.value.children, nestingLevel + 1);
             },
-            .Operand => std.debug.print("   number: {d}, unit: {s}\n", .{ item.value.operand.number, item.value.operand.unit }),
+            .Operand => std.debug.print("   number: {d}, unit: {s}, modifier: {s}\n", .{ item.value.operand.number, item.value.operand.unit, item.value.operand.modifier }),
             .Operator => std.debug.print("   operation: {s}\n", .{item.value.operation}),
             .FunctionCall => {
                 std.debug.print("   function: name: {s},\nparameters:\n", .{item.value.function_call.function_name});

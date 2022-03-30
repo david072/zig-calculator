@@ -1,4 +1,7 @@
-const Allocator = @import("std").mem.Allocator;
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+
+const units = @import("../units.zig");
 
 pub const AstNode = struct {
     nodeType: AstNodeType,
@@ -9,6 +12,7 @@ pub const AstNode = struct {
         operand: struct {
             number: f64,
             unit: ?[]const u8 = null,
+            modifier: enum { None, Factorial } = .None,
         },
         variable_name: []const u8,
         operation: Operation,
@@ -85,6 +89,81 @@ pub const AstNode = struct {
             .Unit => allocator.free(self.value.unit),
             .Separator, .Operator => {},
         }
+    }
+
+    /// Returns `.value.operand.number` with the modifiers applied
+    /// Assumes that this type is `.Operand`. Otherwise, `unreachable` is reached.
+    pub fn getNumberValue(self: *const AstNode) error{InvalidNumber}!f64 {
+        if (self.nodeType != .Operand) unreachable;
+
+        return switch (self.value.operand.modifier) {
+            .None => self.value.operand.number,
+            .Factorial => {
+                if (self.value.operand.number < 0) {
+                    return error.InvalidNumber;
+                } else if (self.value.operand.number == 0) return 0;
+
+                var i: f64 = 1;
+                var result: f64 = 1;
+                while (i <= self.value.operand.number) : (i += 1)
+                    result *= i;
+
+                return result;
+            },
+        };
+    }
+
+    /// Modifies self's value using `operation` and `other` (rhs).
+    /// Returns `error.InvalidParameters` if the parameters didn't match the pattern:
+    /// - self: `nodeType = .Operand`
+    /// - operation: `nodeType == .Operation`
+    /// - other: `nodeType == .Operand` OR for conversions `nodeType == .Unit`
+    pub fn apply(self: *AstNode, allocator: std.mem.Allocator, operation: *const AstNode, other: *const AstNode) error{ InvalidParameters, InvalidNumber, InvalidSyntax, UnknownConversion, OutOfMemory }!void {
+        if (self.nodeType != .Operand or operation.nodeType != .Operator) return error.InvalidParameters;
+        defer other.free(allocator);
+
+        if (operation.value.operation == .Conversion) {
+            if (other.nodeType != .Unit) return error.InvalidSyntax;
+            // Convert units
+            if (self.value.operand.unit == null) {
+                self.value.operand.unit = try allocator.dupe(u8, other.value.unit);
+                return;
+            }
+            self.value.operand.number = units.convert(self.value.operand.number, self.value.operand.unit.?, other.value.unit) orelse return error.UnknownConversion;
+            return;
+        }
+
+        if (other.nodeType != .Operand) return error.InvalidParameters;
+
+        var rhs = try other.getNumberValue();
+        var new_value = try self.getNumberValue();
+
+        if (self.value.operand.unit != null and other.value.operand.unit != null) {
+            if (!std.mem.eql(u8, self.value.operand.unit.?, other.value.operand.unit.?)) {
+                // Convert rhs' value to our unit
+                rhs = units.convert(rhs, other.value.operand.unit.?, self.value.operand.unit.?) orelse return error.UnknownConversion;
+            }
+        } else if (other.value.operand.unit != null) {
+            // Carry rhs' unit over to lhs
+            self.value.operand.unit = try allocator.dupe(u8, other.value.operand.unit.?);
+        }
+
+        switch (operation.value.operation) {
+            .Addition => new_value += rhs,
+            .Subtraction => new_value -= rhs,
+            .Multiplication => new_value *= rhs,
+            .Division => new_value /= rhs,
+            .Conversion => unreachable, // Handled above
+            .Power => new_value = std.math.pow(f64, new_value, rhs),
+            .PowerOfTen => new_value *= std.math.pow(f64, 10, rhs),
+            .BitwiseAnd => new_value = @intToFloat(f64, @floatToInt(i64, new_value) & @floatToInt(i64, rhs)),
+            .BitwiseOr => new_value = @intToFloat(f64, @floatToInt(i64, new_value) | @floatToInt(i64, rhs)),
+            .BitShiftRight => new_value = @intToFloat(f64, @floatToInt(i64, new_value) >> @floatToInt(u6, rhs)),
+            .BitShiftLeft => new_value = @intToFloat(f64, @floatToInt(i64, new_value) << @floatToInt(u6, rhs)),
+        }
+
+        self.value.operand.number = new_value;
+        self.value.operand.modifier = .None;
     }
 };
 

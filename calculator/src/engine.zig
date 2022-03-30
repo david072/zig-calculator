@@ -12,12 +12,14 @@ const units = @import("units.zig");
 
 const CalculationError = error{
     InvalidSyntax,
+    InvalidParameters,
     UnknownConversion,
     UnexpectedUnit,
 
     ExpectedOperand,
     ExpectedOperation,
     NotEnoughNodes,
+    InvalidNumber,
 
     UnknownFunction,
     WrongParameters,
@@ -58,7 +60,7 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode 
 fn evaluateNumber(allocator: Allocator, tree: *[]AstNode) CalculationError!f64 {
     const node = try evaluate(allocator, tree.*);
     if (node.value.operand.unit != null) return CalculationError.UnexpectedUnit;
-    return node.value.operand.number;
+    return try node.getNumberValue();
 }
 
 fn findDeepestNestedGroup(tree: []AstNode, currentNestingLevel: *usize, deepestNestingLevel: *usize) ?*AstNode {
@@ -104,21 +106,8 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
 
     var index: usize = 0;
     while (index < equation.len) {
-        try validateCalculationPair(equation, index);
-
-        const lhs = &equation[index];
-        const rhs = &equation[index + 2];
-
-        try convertCalculationPairUnits(allocator, lhs, rhs);
-
-        switch (equation[index + 1].value.operation) {
-            .Addition => lhs.value.operand.number += rhs.value.operand.number,
-            .Subtraction => lhs.value.operand.number -= rhs.value.operand.number,
-            else => continue,
-        }
-
+        try equation[index].apply(allocator, &equation[index + 1], &equation[index + 2]);
         equation = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation[0 .. index + 1], equation[index + 3 ..] });
-
         if (index + 2 >= equation.len) break;
     }
 
@@ -279,30 +268,8 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
 fn convertUnits(allocator: Allocator, equation: *[]AstNode) CalculationError!void {
     var index: usize = 0;
     while (index < equation.len) {
-        const operation = equation.*[index + 1];
-        if (operation.nodeType == .Operator and operation.value.operation != .Conversion) {
-            if (index + 4 >= equation.len) break;
-            index += 2;
-            continue;
-        }
+        try equation.*[index].apply(allocator, &equation.*[index + 1], &equation.*[index + 2]);
 
-        const lhs = equation.*[index];
-        const rhs = equation.*[index + 2];
-
-        // Validate syntax
-        if ((lhs.nodeType != .Operand or rhs.nodeType != .Unit) or lhs.value.operand.unit == null) {
-            if (operation.value.operation == .Conversion) return CalculationError.InvalidSyntax;
-            if (index + 4 >= equation.len) break;
-            index += 2;
-            continue;
-        }
-
-        // Convert lhs' value from lhs' unit to rhs' unit
-        var result_value = units.convert(lhs.value.operand.number, lhs.value.operand.unit.?, rhs.value.unit) orelse return CalculationError.UnknownConversion;
-
-        // Set the current operands value to the result and change the unit to rhs' unit
-        equation.*[index].value.operand.number = result_value;
-        equation.*[index].value.operand.unit = try allocator.dupe(u8, rhs.value.unit);
         // Remove the next operator and operand
         equation.* = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation.*[0 .. index + 1], equation.*[index + 3 ..] });
 
@@ -331,22 +298,7 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
             .BitShiftRight,
             .BitShiftLeft,
             => {
-                const lhs = &equation.*[index];
-                const rhs = &equation.*[index + 2];
-
-                try convertCalculationPairUnits(allocator, lhs, rhs);
-
-                switch (operator) {
-                    .Multiplication => lhs.value.operand.number *= rhs.value.operand.number,
-                    .Division => lhs.value.operand.number /= rhs.value.operand.number,
-                    .Power => lhs.value.operand.number = std.math.pow(f64, lhs.value.operand.number, rhs.value.operand.number),
-                    .PowerOfTen => lhs.value.operand.number *= std.math.pow(f64, 10, rhs.value.operand.number),
-                    .BitwiseAnd => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) & @floatToInt(i64, rhs.value.operand.number)),
-                    .BitwiseOr => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) | @floatToInt(i64, rhs.value.operand.number)),
-                    .BitShiftRight => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) >> @floatToInt(u6, rhs.value.operand.number)),
-                    .BitShiftLeft => lhs.value.operand.number = @intToFloat(f64, @floatToInt(i64, lhs.value.operand.number) << @floatToInt(u6, rhs.value.operand.number)),
-                    else => unreachable,
-                }
+                try equation.*[index].apply(allocator, &equation.*[index + 1], &equation.*[index + 2]);
 
                 // Remove the next operator and operand
                 equation.* = try std.mem.concat(allocator, AstNode, &[_][]const AstNode{ equation.*[0 .. index + 1], equation.*[index + 3 ..] });
@@ -361,23 +313,6 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
                 index += 2;
             },
         }
-    }
-}
-
-/// Converts units in a calculation pair, preferring lhs' unit.
-/// Examples:
-/// - `4m + 3ft` -> rhs' value will be converted from rhs' unit to lhs' unit
-/// - `4 + 3ft` -> rhs' unit is duped and carried over to lhs
-/// - `4m + 3`, `4 + 3` and `4m + 3m` -> nothing happens
-fn convertCalculationPairUnits(allocator: Allocator, lhs: *AstNode, rhs: *AstNode) CalculationError!void {
-    if (lhs.value.operand.unit != null and rhs.value.operand.unit != null) {
-        if (!std.mem.eql(u8, lhs.value.operand.unit.?, rhs.value.operand.unit.?)) {
-            // Convert rhs' value to lhs' unit
-            rhs.value.operand.number = units.convert(rhs.value.operand.number, rhs.value.operand.unit.?, lhs.value.operand.unit.?) orelse return CalculationError.UnknownConversion;
-        }
-    } else if (rhs.value.operand.unit != null) {
-        // Carry rhs' unit over to lhs
-        lhs.value.operand.unit = try allocator.dupe(u8, rhs.value.operand.unit.?);
     }
 }
 

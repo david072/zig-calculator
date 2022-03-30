@@ -82,6 +82,10 @@ pub const Parser = struct {
                     if (self.last_type != .numberLiteral) return ParsingError.UnexpectedModifier;
                     self.result.items[self.result.items.len - 1].value.operand.modifier = .Factorial;
                 },
+                .@"%" => {
+                    if (self.last_type != .numberLiteral) return ParsingError.UnexpectedModifier;
+                    self.result.items[self.result.items.len - 1].value.operand.modifier = .Percent;
+                },
                 else => try self.parseAstNode(token),
             }
         }

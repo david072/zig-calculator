@@ -12,7 +12,7 @@ pub const AstNode = struct {
         operand: struct {
             number: f64,
             unit: ?[]const u8 = null,
-            modifier: enum { None, Factorial } = .None,
+            modifier: enum { None, Factorial, Percent } = .None,
         },
         variable_name: []const u8,
         operation: Operation,
@@ -110,6 +110,7 @@ pub const AstNode = struct {
 
                 return result;
             },
+            .Percent => self.value.operand.number / 100,
         };
     }
 

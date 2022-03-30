@@ -17,6 +17,7 @@ pub const TokenType = enum {
     @">>",
     @"<<",
     @"!",
+    @"%",
     declaration,
     undeclaration,
     identifier,
@@ -186,6 +187,7 @@ pub const Tokenizer = struct {
             },
             ',' => return .separator,
             '!' => return .@"!",
+            '%' => return .@"%",
             else => return null,
         }
     }

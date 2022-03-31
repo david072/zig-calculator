@@ -78,27 +78,33 @@ pub const Parser = struct {
                     // We need to continue however, to find out which one was meant.
                     self.current_identifier = token;
                 },
-                .@"!" => {
-                    if (self.last_type != .numberLiteral) return ParsingError.UnexpectedModifier;
-                    self.result.items[self.result.items.len - 1].value.operand.modifier = .Factorial;
-                },
-                .@"%" => {
-                    if (self.last_type != .numberLiteral) return ParsingError.UnexpectedModifier;
-                    self.result.items[self.result.items.len - 1].value.operand.modifier = .Percent;
-                },
+                .@"!" => try self.appendModifier(.Factorial),
+                .@"%" => try self.appendModifier(.Percent),
                 else => try self.parseAstNode(token),
             }
         }
 
         if (self.current_identifier != null) {
-            const node = AstNode{
+            try self.result.append(.{
                 .nodeType = .VariableReference,
                 .value = .{ .variable_name = self.current_identifier.?.text },
-            };
-            try self.result.append(node);
+            });
         }
 
         return self.result.toOwnedSlice();
+    }
+
+    fn appendModifier(self: *Self, modifier: ast.AstNodeModifier) ParsingError!void {
+        if (self.current_identifier != null) {
+            try self.result.append(.{
+                .nodeType = .VariableReference,
+                .value = .{ .variable_name = self.current_identifier.?.text },
+            });
+            self.current_identifier = null;
+        }
+        if (self.result.items.len == 0) return ParsingError.UnexpectedModifier;
+
+        self.result.items[self.result.items.len - 1].modifier = modifier;
     }
 
     fn parseFunctionCall(self: *Self, index: *usize) ParsingError!void {

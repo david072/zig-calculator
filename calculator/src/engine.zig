@@ -43,8 +43,9 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode 
     var deepestNestedGroup: ?*AstNode = findDeepestNestedGroup(tree, &currentNestingLevel, &deepestNestingLevel);
 
     while (deepestNestedGroup != null) {
-        const groupResult = try evaluateEquation(allocator, deepestNestedGroup.?.value.children);
+        var groupResult = try evaluateEquation(allocator, deepestNestedGroup.?.value.children);
 
+        groupResult.modifier = deepestNestedGroup.?.modifier;
         deepestNestedGroup.?.* = groupResult;
 
         currentNestingLevel = 0;
@@ -141,7 +142,9 @@ fn expandVariables(allocator: Allocator, tree: []AstNode) CalculationError!void 
             return CalculationError.UnknownVariable;
         };
 
-        tree[i] = try evaluate(allocator, defined_variable.equation);
+        var replacement = try evaluate(allocator, defined_variable.equation);
+        replacement.modifier = tree[i].modifier;
+        tree[i] = replacement;
     }
 }
 

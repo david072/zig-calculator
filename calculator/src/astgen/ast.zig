@@ -3,6 +3,8 @@ const Allocator = std.mem.Allocator;
 
 const units = @import("../units.zig");
 
+pub const AstNodeModifier = enum { None, Factorial, Percent };
+
 pub const AstNode = struct {
     nodeType: AstNodeType,
     value: union {
@@ -12,12 +14,12 @@ pub const AstNode = struct {
         operand: struct {
             number: f64,
             unit: ?[]const u8 = null,
-            modifier: enum { None, Factorial, Percent } = .None,
         },
         variable_name: []const u8,
         operation: Operation,
         unit: []const u8, // Target unit for conversions
     },
+    modifier: AstNodeModifier = .None,
 
     pub fn deepDupe(self: *const AstNode, allocator: Allocator) error{OutOfMemory}!AstNode {
         switch (self.nodeType) {
@@ -96,7 +98,7 @@ pub const AstNode = struct {
     pub fn getNumberValue(self: *const AstNode) error{InvalidNumber}!f64 {
         if (self.nodeType != .Operand) unreachable;
 
-        return switch (self.value.operand.modifier) {
+        return switch (self.modifier) {
             .None => self.value.operand.number,
             .Factorial => {
                 if (self.value.operand.number < 0) {
@@ -164,7 +166,7 @@ pub const AstNode = struct {
         }
 
         self.value.operand.number = new_value;
-        self.value.operand.modifier = .None;
+        self.modifier = .None;
     }
 };
 

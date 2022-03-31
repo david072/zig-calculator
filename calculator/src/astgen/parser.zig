@@ -84,27 +84,40 @@ pub const Parser = struct {
             }
         }
 
-        if (self.current_identifier != null) {
-            try self.result.append(.{
-                .nodeType = .VariableReference,
-                .value = .{ .variable_name = self.current_identifier.?.text },
-            });
-        }
-
+        try self.appendVariableReference(true);
         return self.result.toOwnedSlice();
     }
 
     fn appendModifier(self: *Self, modifier: ast.AstNodeModifier) ParsingError!void {
-        if (self.current_identifier != null) {
-            try self.result.append(.{
-                .nodeType = .VariableReference,
-                .value = .{ .variable_name = self.current_identifier.?.text },
-            });
-            self.current_identifier = null;
-        }
+        try self.appendVariableReference(true);
         if (self.result.items.len == 0) return ParsingError.UnexpectedModifier;
 
         self.result.items[self.result.items.len - 1].modifier = modifier;
+    }
+
+    /// Appends a variable reference node to the result, if there is one
+    fn appendVariableReference(self: *Self, skip_validation: bool) ParsingError!void {
+        if (self.current_identifier == null) return;
+        if (!skip_validation)
+            if (self.last_type != .operator and self.last_type != .start) return ParsingError.UnexpectedValue;
+
+        const variable = self.current_identifier.?;
+
+        // Check if variable is valid
+        var_blk: {
+            if (calc_context.isStandardVariable(variable.text)) break :var_blk;
+            if (calc_context.getVariableDeclarationIndex(variable.text) != null) break :var_blk;
+
+            for (self.allowed_variables) |*v|
+                if (std.mem.eql(u8, variable.text, v.*)) break :var_blk;
+            return ParsingError.UnknownVariable;
+        }
+
+        try self.result.append(.{
+            .nodeType = .VariableReference,
+            .value = .{ .variable_name = variable.text },
+        });
+        self.current_identifier = null;
     }
 
     fn parseFunctionCall(self: *Self, index: *usize) ParsingError!void {
@@ -197,29 +210,8 @@ pub const Parser = struct {
         if (self.last_type == categorizedTokenType(token.type)) return ParsingError.UnexpectedValue;
         self.last_type = categorizedTokenType(token.type);
 
-        // Handle variable reference
-        if (self.current_identifier) |variable| blk: {
-            if (!token.type.isOperator()) break :blk;
-            if (self.last_type != .operator and self.last_type != .start) break :blk;
-
-            // Check if variable is valid
-            var_blk: {
-                if (calc_context.isStandardVariable(variable.text)) break :var_blk;
-                if (calc_context.getVariableDeclarationIndex(variable.text) != null) break :var_blk;
-
-                for (self.allowed_variables) |*v|
-                    if (std.mem.eql(u8, variable.text, v.*)) break :var_blk;
-                break :var_blk return ParsingError.UnknownVariable;
-            }
-
-            const node = AstNode{
-                .nodeType = .VariableReference,
-                .value = .{ .variable_name = variable.text },
-            };
-            try self.result.append(node);
-            self.current_identifier = null;
-        }
-
+        // Potentially add variable reference
+        try self.appendVariableReference(false);
         try self.result.append(try astNodeFromToken(token));
     }
 

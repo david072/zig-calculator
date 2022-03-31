@@ -141,6 +141,7 @@ pub const Parser = struct {
                     parameter_index += 1;
                     start_index = index.* + 1;
                 },
+                .@"(" => nesting_level += 1,
                 .@")" => {
                     if (nesting_level > 0) {
                         nesting_level -= 1;

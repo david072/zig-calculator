@@ -11,10 +11,7 @@ pub const AstNode = struct {
         children: []AstNode,
         function_call: FunctionCall,
         nothing: void,
-        operand: struct {
-            number: f64,
-            unit: ?[]const u8 = null,
-        },
+        operand: Operand,
         variable_name: []const u8,
         operation: Operation,
         unit: []const u8, // Target unit for conversions
@@ -23,46 +20,22 @@ pub const AstNode = struct {
     modifier: AstNodeModifier = .None,
 
     pub fn deepDupe(self: *const AstNode, allocator: Allocator) error{OutOfMemory}!AstNode {
-        switch (self.nodeType) {
-            .Group => {
-                return AstNode{
-                    .nodeType = self.nodeType,
-                    .value = .{ .children = try deepDupeNodeList(&self.value.children, allocator) },
-                };
-            },
-            .FunctionCall => {
-                return AstNode{
-                    .nodeType = self.nodeType,
-                    .value = .{ .function_call = try self.value.function_call.deepDupe(allocator) },
-                };
-            },
-            .Operand => {
-                if (self.value.operand.unit == null) return self.*;
-
-                return AstNode{
-                    .nodeType = self.nodeType,
-                    .value = .{
-                        .operand = .{
-                            .number = self.value.operand.number,
-                            .unit = try allocator.dupe(u8, self.value.operand.unit.?),
-                        },
+        return AstNode{
+            .nodeType = self.nodeType,
+            .value = switch (self.nodeType) {
+                .Group => .{ .children = try deepDupeNodeList(&self.value.children, allocator) },
+                .FunctionCall => .{ .function_call = try self.value.function_call.deepDupe(allocator) },
+                .Operand => .{
+                    .operand = Operand{
+                        .number = self.value.operand.number,
+                        .unit = if (self.value.operand.unit == null) null else try allocator.dupe(u8, self.value.operand.unit.?),
                     },
-                };
+                },
+                .VariableReference => .{ .variable_name = try allocator.dupe(u8, self.value.variable_name) },
+                .Unit => .{ .unit = try allocator.dupe(u8, self.value.unit) },
+                else => self.value,
             },
-            .VariableReference => {
-                return AstNode{
-                    .nodeType = self.nodeType,
-                    .value = .{ .variable_name = try allocator.dupe(u8, self.value.variable_name) },
-                };
-            },
-            .Unit => {
-                return AstNode{
-                    .nodeType = self.nodeType,
-                    .value = .{ .unit = try allocator.dupe(u8, self.value.unit) },
-                };
-            },
-            else => return self.*,
-        }
+        };
     }
 
     fn deepDupeNodeList(list: *const []const AstNode, allocator: Allocator) error{OutOfMemory}![]AstNode {
@@ -181,6 +154,11 @@ pub const AstNode = struct {
         self.value.operand.number = new_value;
         self.modifier = .None;
     }
+};
+
+pub const Operand = struct {
+    number: f64,
+    unit: ?[]const u8 = null,
 };
 
 pub const FunctionCall = struct {

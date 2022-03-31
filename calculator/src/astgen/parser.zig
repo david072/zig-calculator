@@ -80,6 +80,7 @@ pub const Parser = struct {
                     self.current_identifier = token;
                 },
                 .@"!" => try self.appendModifier(.Factorial),
+                .@"!!" => try self.appendModifier(.DoubleFactorial),
                 .@"%" => try self.appendModifier(.Percent),
                 else => try self.parseAstNode(token),
             }

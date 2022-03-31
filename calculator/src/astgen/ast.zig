@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 
 const units = @import("../units.zig");
 
-pub const AstNodeModifier = enum { None, Factorial, Percent };
+pub const AstNodeModifier = enum { None, Factorial, DoubleFactorial, Percent };
 
 pub const AstNode = struct {
     nodeType: AstNodeType,
@@ -108,6 +108,18 @@ pub const AstNode = struct {
                 var i: f64 = 1;
                 var result: f64 = 1;
                 while (i <= self.value.operand.number) : (i += 1)
+                    result *= i;
+
+                return result;
+            },
+            .DoubleFactorial => {
+                if (self.value.operand.number < 0) {
+                    return error.InvalidNumber;
+                } else if (self.value.operand.number == 0) return 0;
+
+                var i: f64 = if (@mod(self.value.operand.number, 2) == 0) 2 else 1;
+                var result: f64 = 1;
+                while (i <= self.value.operand.number) : (i += 2)
                     result *= i;
 
                 return result;

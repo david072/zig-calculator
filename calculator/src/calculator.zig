@@ -38,18 +38,21 @@ pub fn calculate(input: []const u8) !?[]const u8 {
 
     // dumpAst(tree, 0);
 
-    const result = try engine.evaluate(arena.allocator(), tree);
+    const result = try engine.calculate(arena.allocator(), tree);
     context.setLastValue(&result);
 
     var buf: [100]u8 = undefined;
-    const number = try std.fmt.bufPrint(&buf, "{d}", .{result.getNumberValue()});
-
     var formattedResult = std.ArrayList(u8).init(allocator);
-    try formattedResult.appendSlice(number);
-    if (result.value.operand.unit != null) {
-        const unit = try allocator.dupe(u8, result.value.operand.unit.?);
-        try formattedResult.appendSlice(unit);
-        allocator.free(unit);
+
+    if (result.nodeType == .Boolean) {
+        try formattedResult.appendSlice(try std.fmt.bufPrint(&buf, "{d}", .{result.value.boolean}));
+    } else {
+        try formattedResult.appendSlice(try std.fmt.bufPrint(&buf, "{d}", .{result.getNumberValue()}));
+        if (result.value.operand.unit != null) {
+            const unit = try allocator.dupe(u8, result.value.operand.unit.?);
+            try formattedResult.appendSlice(unit);
+            allocator.free(unit);
+        }
     }
 
     return formattedResult.toOwnedSlice();
@@ -71,7 +74,7 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
                 std.debug.print("   children: {d}\n", .{item.value.children.len});
                 dumpAst(item.value.children, nestingLevel + 1);
             },
-            .Operand => std.debug.print("   number: {d}, unit: {s}, modifier: {s}\n", .{ item.value.operand.number, item.value.operand.unit, item.value.operand.modifier }),
+            .Operand => std.debug.print("   number: {d}, unit: {s}, modifier: {s}\n", .{ item.value.operand.number, item.value.operand.unit, item.modifier }),
             .Operator => std.debug.print("   operation: {s}\n", .{item.value.operation}),
             .FunctionCall => {
                 std.debug.print("   function: name: {s},\nparameters:\n", .{item.value.function_call.function_name});
@@ -81,7 +84,7 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
             },
             .VariableReference => std.debug.print("   variable: {s}\n", .{item.value.variable_name}),
             .Unit => std.debug.print("   unit: {s}\n", .{item.value.unit}),
-            .Separator => unreachable,
+            .EqualSign => {},
         }
     }
 }

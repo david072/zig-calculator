@@ -241,6 +241,11 @@ pub const Parser = struct {
                     .operand = .{ .number = number },
                 },
             };
+        } else if (token.type == .@"=") {
+            return AstNode{
+                .nodeType = .EqualSign,
+                .value = .{ .nothing = {} },
+            };
         }
 
         return AstNode{

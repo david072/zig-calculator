@@ -18,6 +18,8 @@ const CalculationError = error{
     UnknownConversion,
     UnexpectedUnit,
 
+    UnexpectedEqualSign,
+
     ExpectedOperand,
     ExpectedOperation,
     NotEnoughNodes,
@@ -64,6 +66,20 @@ pub fn arcSin(x: f64) f64 {
     return @floatCast(f64, result);
 }
 
+pub fn calculate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode {
+    if (try isEqualityCheck(tree)) |equal_sign_index| {
+        const lhs = try evaluate(allocator, tree[0..equal_sign_index]);
+        const rhs = try evaluate(allocator, tree[equal_sign_index + 1 ..]);
+
+        return AstNode{
+            .nodeType = .Boolean,
+            .value = .{ .boolean = lhs.value.operand.number == rhs.value.operand.number },
+        };
+    }
+
+    return evaluate(allocator, tree);
+}
+
 pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode {
     var currentNestingLevel: usize = 0;
     var deepestNestingLevel: usize = 0;
@@ -81,6 +97,20 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode 
     }
 
     return evaluateEquation(allocator, tree);
+}
+
+/// Checks if `tree` is an equality check (has an EqualSign node)
+/// If it is, it returns the index of the equal sign, otherwise null
+fn isEqualityCheck(tree: []AstNode) CalculationError!?usize {
+    var equal_sign_index: ?usize = null;
+    for (tree) |*node, i| {
+        if (node.nodeType == .EqualSign) {
+            if (equal_sign_index != null) return CalculationError.UnexpectedEqualSign;
+            equal_sign_index = i;
+        }
+    }
+
+    return equal_sign_index;
 }
 
 /// Calls `evaluate`, ensuring the result does not have a unit

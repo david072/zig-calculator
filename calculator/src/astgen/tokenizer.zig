@@ -19,14 +19,13 @@ pub const TokenType = enum {
     @"!",
     @"!!",
     @"%",
-    declaration,
-    undeclaration,
+    @"=",
     identifier,
     separator,
 
     pub fn isOperator(self: TokenType) bool {
         return switch (self) {
-            .@"+", .@"-", .@"*", .@"/", .in, .@"^", .e, .@"&", .@"|", .@">>", .@"<<" => true,
+            .@"+", .@"-", .@"*", .@"/", .in, .@"^", .e, .@"&", .@"|", .@">>", .@"<<", .@"=" => true,
             else => false,
         };
     }
@@ -203,6 +202,7 @@ pub const Tokenizer = struct {
                 return .@"!";
             },
             '%' => return .@"%",
+            '=' => return .@"=",
             else => return null,
         }
     }

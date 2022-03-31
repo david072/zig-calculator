@@ -10,7 +10,7 @@ pub const AstNode = struct {
     value: union {
         children: []AstNode,
         function_call: FunctionCall,
-        nothing: u1,
+        nothing: void,
         operand: struct {
             number: f64,
             unit: ?[]const u8 = null,
@@ -18,6 +18,7 @@ pub const AstNode = struct {
         variable_name: []const u8,
         operation: Operation,
         unit: []const u8, // Target unit for conversions
+        boolean: bool,
     },
     modifier: AstNodeModifier = .None,
 
@@ -89,7 +90,7 @@ pub const AstNode = struct {
                     allocator.free(self.value.operand.unit.?);
             },
             .Unit => allocator.free(self.value.unit),
-            .Separator, .Operator => {},
+            .EqualSign, .Operator, .Boolean => {},
         }
     }
 
@@ -242,11 +243,12 @@ pub const FunctionDeclaration = struct {
 pub const AstNodeType = enum {
     Group,
     FunctionCall,
-    Separator,
     Operand,
     VariableReference,
     Operator,
     Unit,
+    EqualSign,
+    Boolean,
 };
 
 pub const Operation = enum {

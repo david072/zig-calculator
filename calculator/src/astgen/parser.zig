@@ -15,6 +15,7 @@ pub const ParsingError = error{
     UnknownUnit,
     UnknownVariable,
     UnexpectedModifier,
+    Overflow,
 } || std.fmt.ParseFloatError || Allocator.Error;
 
 pub const Parser = struct {
@@ -226,10 +227,16 @@ pub const Parser = struct {
 
     fn astNodeFromToken(token: *const tokenizer.Token) !AstNode {
         if (token.type == .number) {
+            var number: f64 = if (std.mem.startsWith(u8, token.text, "0x") or std.mem.startsWith(u8, token.text, "0b")) blk: {
+                break :blk @intToFloat(f64, try std.fmt.parseInt(u64, token.text, 0));
+            } else blk: {
+                break :blk try std.fmt.parseFloat(f64, token.text);
+            };
+
             return AstNode{
                 .nodeType = .Operand,
                 .value = .{
-                    .operand = .{ .number = try std.fmt.parseFloat(f64, token.text) },
+                    .operand = .{ .number = number },
                 },
             };
         }

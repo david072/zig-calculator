@@ -132,6 +132,8 @@ pub const Tokenizer = struct {
     const identifier_class = anyOf("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789");
     const letter_class = anyOf("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
     const digit_class = anyOf("0123456789.");
+    const hexadecimal_class = anyOf("0123456789abcdefABCDEF");
+    const binary_class = anyOf("01");
 
     fn nextInternal(self: *Self) ?TokenType {
         // Fast-forward through whitespace
@@ -144,6 +146,14 @@ pub const Tokenizer = struct {
         self.index += 1;
         switch (character) {
             '0'...'9' => {
+                if (self.accept(anyOf("x"))) {
+                    while (self.accept(hexadecimal_class)) {}
+                    return .number;
+                } else if (self.accept(anyOf("b"))) {
+                    while (self.accept(binary_class)) {}
+                    return .number;
+                }
+
                 while (self.accept(digit_class)) {}
                 return .number;
             },

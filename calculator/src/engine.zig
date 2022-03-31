@@ -10,6 +10,8 @@ const util = @import("../util/util.zig");
 
 const units = @import("units.zig");
 
+const trigonometric_function_iterations = 1000;
+
 const CalculationError = error{
     InvalidSyntax,
     InvalidParameters,
@@ -33,8 +35,33 @@ const CalculationError = error{
 };
 
 /// Helper to convert degrees into radians
-pub inline fn radians(degrees: f64) f64 {
-    return (degrees / 360) * 2 * std.math.pi;
+pub inline fn radians(deg: f64) f64 {
+    return (deg / 360) * 2 * std.math.pi;
+}
+
+pub inline fn degrees(rad: f64) f64 {
+    return rad * 180 / std.math.pi;
+}
+
+pub fn arcSin(x: f64) f64 {
+    var index: usize = 0;
+    var power: f64 = 3;
+    var fraction_upper: f128 = 1;
+    var fraction_lower: f128 = 2;
+
+    var result: f128 = x;
+    while (index <= trigonometric_function_iterations) : ({
+        index += 1;
+        fraction_upper *= power;
+        fraction_lower *= power + 1;
+        power += 2;
+    }) {
+        const fraction1 = fraction_upper / fraction_lower;
+        const fraction2 = std.math.pow(f64, x, power) / power;
+        result += fraction1 * fraction2;
+    }
+
+    return @floatCast(f64, result);
 }
 
 pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode {
@@ -163,13 +190,39 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
             if (std.mem.eql(u8, function_call.function_name, "sin")) {
                 // sin(param1)
                 break :blk @sin(radians(parameter));
+            } else if (std.mem.eql(u8, function_call.function_name, "arcsin")) {
+                // inverse sin
+                break :blk degrees(arcSin(parameter));
             } else if (std.mem.eql(u8, function_call.function_name, "cos")) {
                 // cos(param1)
                 break :blk @cos(radians(parameter));
+            } else if (std.mem.eql(u8, function_call.function_name, "arccos")) {
+                // inverse cos
+                // (std.math.pi / 2) - arcSin(parameter)
+                break :blk degrees((@as(f64, std.math.pi) / 2) - arcSin(parameter));
             } else if (std.mem.eql(u8, function_call.function_name, "tan")) {
                 // tan(param1)
                 const rad = radians(parameter);
                 break :blk @sin(rad) / @cos(rad);
+            } else if (std.mem.eql(u8, function_call.function_name, "arctan")) {
+                // inverse tan
+                var index: usize = 0;
+                var power: f64 = 3;
+
+                var result: f128 = parameter;
+                while (index <= trigonometric_function_iterations) : ({
+                    index += 1;
+                    power += 2;
+                }) {
+                    const new_value = (1 / power) * std.math.pow(f64, parameter, power);
+                    if (index % 2 == 0) {
+                        result -= new_value;
+                    } else {
+                        result += new_value;
+                    }
+                }
+
+                break :blk degrees(@floatCast(f64, result));
             } else if (std.mem.eql(u8, function_call.function_name, "ln")) {
                 // returns ln(param1) - log param1 to base e
                 break :blk @log(parameter);
@@ -207,19 +260,23 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
                 // returns ceiled value of param1
                 break :blk std.math.ceil(parameter);
             } else if (std.mem.eql(u8, function_call.function_name, "max")) {
+                // max value of param1 and param2
                 if (function_call.parameters.len != 2) return CalculationError.WrongParameters;
                 const parameter_2 = try evaluateNumber(allocator, &function_call.parameters[1]);
                 break :blk std.math.max(parameter, parameter_2);
             } else if (std.mem.eql(u8, function_call.function_name, "min")) {
+                // min value of param1 and param2
                 if (function_call.parameters.len != 2) return CalculationError.WrongParameters;
                 const parameter_2 = try evaluateNumber(allocator, &function_call.parameters[1]);
                 break :blk std.math.min(parameter, parameter_2);
             } else if (std.mem.eql(u8, function_call.function_name, "clamp")) {
+                // param1, in the range param2 - param3
                 if (function_call.parameters.len != 3) return CalculationError.WrongParameters;
                 const lower = try evaluateNumber(allocator, &function_call.parameters[1]);
                 const upper = try evaluateNumber(allocator, &function_call.parameters[2]);
                 break :blk std.math.clamp(parameter, lower, upper);
             } else if (std.mem.eql(u8, function_call.function_name, "map")) {
+                // param1, from the range param2 - param3, mapped into the range param4 - param5
                 if (function_call.parameters.len != 5) return CalculationError.WrongParameters;
                 const A = try evaluateNumber(allocator, &function_call.parameters[1]);
                 const B = try evaluateNumber(allocator, &function_call.parameters[2]);

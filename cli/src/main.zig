@@ -2,6 +2,9 @@ const std = @import("std");
 
 const calculator = @import("calculator");
 
+var evaluate_depth: ?calculator.EvaluateDepth = null;
+var verbosity: ?calculator.Verbosity = null;
+
 const allowedCharacters = "+-*/=.,()_:^&|<>!%0123456789abcdefghijklmnopqrstuvwxyz\n\r ";
 const exitInput = "exit";
 
@@ -13,6 +16,8 @@ pub fn main() anyerror!void {
 
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     defer _ = gpa.deinit();
+
+    try parseArgs(gpa.allocator());
 
     calculator.init(gpa.allocator());
     defer calculator.deinit();
@@ -42,6 +47,39 @@ pub fn main() anyerror!void {
             try stdout.print("Result: {s}\n", .{result.?});
             gpa.allocator().free(result.?);
         }
+    }
+}
+
+fn parseArgs(a: std.mem.Allocator) !void {
+    var arena = std.heap.ArenaAllocator.init(a);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var iterator = try std.process.ArgIterator.initWithAllocator(allocator);
+    defer iterator.deinit();
+    _ = try iterator.next(allocator);
+
+    while (try iterator.next(allocator)) |arg| {
+        if (std.mem.eql(u8, arg, "--evaluate-depth")) {
+            const depth = (try iterator.next(allocator)) orelse continue;
+            if (std.mem.eql(u8, depth, "tokenize")) {
+                evaluate_depth = .Tokenize;
+            } else if (std.mem.eql(u8, depth, "parse")) {
+                evaluate_depth = .Parse;
+            } else if (std.mem.eql(u8, depth, "calculate")) {
+                evaluate_depth = .Calculate;
+            } else return error.UnknownEvaluateDepth;
+        } else if (std.mem.eql(u8, arg, "--verbosity")) {
+            const verb = (try iterator.next(allocator)) orelse continue;
+            if (std.mem.eql(u8, verb, "tokens")) {
+                verbosity = .PrintTokens;
+            } else if (std.mem.eql(u8, verb, "ast")) {
+                verbosity = .PrintAst;
+            } else if (std.mem.eql(u8, verb, "all")) {
+                verbosity = .PrintAll;
+            } else return error.UnknownVerbosity;
+        } else return error.UnknownArgument;
     }
 }
 

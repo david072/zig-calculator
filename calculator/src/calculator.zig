@@ -7,6 +7,18 @@ const ast = @import("astgen/ast.zig");
 
 const tokenizer = @import("astgen/tokenizer.zig");
 
+pub const EvaluateDepth = enum {
+    Tokenize,
+    Parse,
+    Calculate,
+};
+
+pub const Verbosity = enum {
+    PrintTokens,
+    PrintAst,
+    PrintAll,
+};
+
 var allocator: std.mem.Allocator = undefined;
 
 pub fn init(alloc: std.mem.Allocator) void {
@@ -18,7 +30,7 @@ pub fn deinit() void {
     context.deinit();
 }
 
-pub fn calculate(input: []const u8) !?[]const u8 {
+pub fn calculate(input: []const u8, evaluate_depth: ?EvaluateDepth, verbosity: ?Verbosity) !?[]const u8 {
     // Create a ("one-time use") arena allocator. After the calculation
     // has finished, this helps freeing all "temporary" memory allocated during parsing
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -33,10 +45,16 @@ pub fn calculate(input: []const u8) !?[]const u8 {
     }
 
     const tokens = try tokenizer.tokenize(arena.allocator(), input);
-    // for (tokens) |*token| std.debug.print("{s} -> {s}\n", .{ token.text, token.type });
+    if (verbosity != null and (verbosity.? == .PrintTokens or verbosity.? == .PrintAll))
+        for (tokens) |*token| std.debug.print("{s} -> {s}\n", .{ token.text, token.type });
+
+    if (evaluate_depth != null and evaluate_depth.? != .Parse) return null;
     const tree = try parser.parse(arena.allocator(), tokens);
 
-    // dumpAst(tree, 0);
+    if (verbosity != null and (verbosity.? == .PrintAst or verbosity.? == .PrintAll))
+        dumpAst(tree, 0);
+
+    if (evaluate_depth != null and evaluate_depth.? != .Calculate) return null;
 
     const result = try engine.calculate(arena.allocator(), tree);
     context.setLastValue(&result);

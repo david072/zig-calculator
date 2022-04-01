@@ -4,6 +4,7 @@ pub const TokenType = enum {
     whitespace,
     number,
     in,
+    of,
     e,
     @"+",
     @"-",
@@ -25,13 +26,13 @@ pub const TokenType = enum {
 
     pub fn isOperator(self: TokenType) bool {
         return switch (self) {
-            .@"+", .@"-", .@"*", .@"/", .in, .@"^", .e, .@"&", .@"|", .@">>", .@"<<", .@"=" => true,
+            .@"+", .@"-", .@"*", .@"/", .in, .of, .@"^", .e, .@"&", .@"|", .@">>", .@"<<", .@"=" => true,
             else => false,
         };
     }
 };
 
-pub const keywords = [_][]const u8{ "in", "e" };
+pub const keywords = [_][]const u8{"e"};
 
 pub const Token = struct {
     type: TokenType,
@@ -69,10 +70,14 @@ pub const Tokenizer = struct {
             };
 
             if (token_type == .identifier) blk: {
-                if (std.mem.eql(u8, self.source[start..end], "in")) {
-                    if (self.last_token_type != null and self.last_token_type.? == .whitespace)
+                if (self.last_token_type != null and self.last_token_type.? == .whitespace) {
+                    if (std.mem.eql(u8, self.source[start..end], "in")) {
                         token.type = TokenType.in;
-                    break :blk;
+                        break :blk;
+                    } else if (std.mem.eql(u8, self.source[start..end], "of")) {
+                        token.type = TokenType.of;
+                        break :blk;
+                    }
                 }
 
                 inline for (keywords) |kwd| {

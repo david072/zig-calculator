@@ -84,6 +84,7 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
             },
             .VariableReference => std.debug.print("   variable: {s}\n", .{item.value.variable_name}),
             .Unit => std.debug.print("   unit: {s}\n", .{item.value.unit}),
+            .Boolean => std.debug.print("   bool: {s}\n", .{item.value.boolean}),
             .EqualSign => {},
         }
     }

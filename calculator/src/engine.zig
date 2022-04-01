@@ -154,7 +154,7 @@ fn evaluateEquation(allocator: Allocator, originalEquation: []AstNode) Calculati
 
     var equation = try allocator.dupe(AstNode, originalEquation);
 
-    try convertUnits(allocator, &equation);
+    try evaluateConversions(allocator, &equation);
     try evaluatePointCalculations(allocator, &equation);
 
     if (equation.len == 1) {
@@ -355,9 +355,17 @@ pub fn evaluateFunctions(allocator: Allocator, equation: []AstNode) CalculationE
     }
 }
 
-fn convertUnits(allocator: Allocator, equation: *[]AstNode) CalculationError!void {
+fn evaluateConversions(allocator: Allocator, equation: *[]AstNode) CalculationError!void {
     var index: usize = 0;
     while (index < equation.len) {
+        const operator = &equation.*[index + 1];
+        if (operator.nodeType != .Operator) return CalculationError.ExpectedOperation;
+        if (operator.value.operation != .Conversion or operator.value.operation != .Of) {
+            if (index + 4 >= equation.len) break;
+            index += 2;
+            continue;
+        }
+
         try equation.*[index].apply(allocator, &equation.*[index + 1], &equation.*[index + 2]);
 
         // Remove the next operator and operand

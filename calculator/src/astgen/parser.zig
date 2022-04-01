@@ -257,6 +257,7 @@ pub const Parser = struct {
                     .@"*" => .Multiplication,
                     .@"/" => .Division,
                     .in => .Conversion,
+                    .of => .Of,
                     .@"^" => .Power,
                     .e => .PowerOfTen,
                     .@"&" => .BitwiseAnd,

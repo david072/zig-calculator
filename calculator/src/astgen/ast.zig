@@ -120,6 +120,13 @@ pub const AstNode = struct {
             }
             self.value.operand.number = units.convert(self.value.operand.number, self.value.operand.unit.?, other.value.unit) orelse return error.UnknownConversion;
             return;
+        } else if (operation.value.operation == .Of) {
+            if (self.modifier != .Percent or other.nodeType != .Operand) return error.InvalidSyntax;
+            self.value.operand.number = (try self.getNumberValue()) * other.value.operand.number;
+            if (other.value.operand.unit) |*unit|
+                self.value.operand.unit = try allocator.dupe(u8, unit.*);
+            self.modifier = .None;
+            return;
         }
 
         if (other.nodeType != .Operand) return error.InvalidParameters;
@@ -142,7 +149,7 @@ pub const AstNode = struct {
             .Subtraction => new_value -= rhs,
             .Multiplication => new_value *= rhs,
             .Division => new_value /= rhs,
-            .Conversion => unreachable, // Handled above
+            .Conversion, .Of => unreachable, // Handled above
             .Power => new_value = std.math.pow(f64, new_value, rhs),
             .PowerOfTen => new_value *= std.math.pow(f64, 10, rhs),
             .BitwiseAnd => new_value = @intToFloat(f64, @floatToInt(i64, new_value) & @floatToInt(i64, rhs)),
@@ -235,6 +242,7 @@ pub const Operation = enum {
     Multiplication,
     Division,
     Conversion,
+    Of,
     Power,
     PowerOfTen,
     BitwiseAnd,

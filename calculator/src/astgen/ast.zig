@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const units = @import("../units.zig");
 
 pub const AstNodeModifier = enum { None, Factorial, DoubleFactorial, Percent };
+pub const Sign = enum { Positive, Negative };
 
 pub const AstNode = struct {
     nodeType: AstNodeType,
@@ -18,6 +19,9 @@ pub const AstNode = struct {
         boolean: bool,
     },
     modifier: AstNodeModifier = .None,
+    /// "temporary" variable used to store the sign of non-numbers (groups, ...).
+    /// After a calculation is done, the number will contain the sign.
+    sign: Sign = .Positive, 
 
     pub fn deepDupe(self: *const AstNode, allocator: Allocator) error{OutOfMemory}!AstNode {
         return AstNode{
@@ -27,7 +31,7 @@ pub const AstNode = struct {
                 .FunctionCall => .{ .function_call = try self.value.function_call.deepDupe(allocator) },
                 .Operand => .{
                     .operand = Operand{
-                        .number = self.value.operand.number,
+                        .number = self.getNumber(),
                         .unit = if (self.value.operand.unit == null) null else try allocator.dupe(u8, self.value.operand.unit.?),
                     },
                 },
@@ -67,38 +71,43 @@ pub const AstNode = struct {
         }
     }
 
+    inline fn getNumber(self: *const AstNode) f64 {
+        if (self.sign == .Negative) return self.value.operand.number * -1;
+        return self.value.operand.number;
+    }
+
     /// Returns `.value.operand.number` with the modifiers applied
     /// Assumes that this type is `.Operand`. Otherwise, `unreachable` is reached.
     pub fn getNumberValue(self: *const AstNode) error{InvalidNumber}!f64 {
         if (self.nodeType != .Operand) unreachable;
 
         return switch (self.modifier) {
-            .None => self.value.operand.number,
+            .None => self.getNumber(),
             .Factorial => {
-                if (self.value.operand.number < 0) {
+                if (self.getNumber() < 0) {
                     return error.InvalidNumber;
-                } else if (self.value.operand.number == 0) return 0;
+                } else if (self.getNumber() == 0) return 0;
 
                 var i: f64 = 1;
                 var result: f64 = 1;
-                while (i <= self.value.operand.number) : (i += 1)
+                while (i <= self.getNumber()) : (i += 1)
                     result *= i;
 
                 return result;
             },
             .DoubleFactorial => {
-                if (self.value.operand.number < 0) {
+                if (self.getNumber() < 0) {
                     return error.InvalidNumber;
-                } else if (self.value.operand.number == 0) return 0;
+                } else if (self.getNumber() == 0) return 0;
 
-                var i: f64 = if (@mod(self.value.operand.number, 2) == 0) 2 else 1;
+                var i: f64 = if (@mod(self.getNumber(), 2) == 0) 2 else 1;
                 var result: f64 = 1;
-                while (i <= self.value.operand.number) : (i += 2)
+                while (i <= self.getNumber()) : (i += 2)
                     result *= i;
 
                 return result;
             },
-            .Percent => self.value.operand.number / 100,
+            .Percent => self.getNumber() / 100,
         };
     }
 
@@ -118,11 +127,11 @@ pub const AstNode = struct {
                 self.value.operand.unit = try allocator.dupe(u8, other.value.unit);
                 return;
             }
-            self.value.operand.number = units.convert(self.value.operand.number, self.value.operand.unit.?, other.value.unit) orelse return error.UnknownConversion;
+            self.value.operand.number = units.convert(self.getNumber(), self.value.operand.unit.?, other.value.unit) orelse return error.UnknownConversion;
             return;
         } else if (operation.value.operation == .Of) {
             if (self.modifier != .Percent or other.nodeType != .Operand) return error.InvalidSyntax;
-            self.value.operand.number = (try self.getNumberValue()) * other.value.operand.number;
+            self.value.operand.number = (try self.getNumberValue()) * other.getNumber();
             if (other.value.operand.unit) |*unit|
                 self.value.operand.unit = try allocator.dupe(u8, unit.*);
             self.modifier = .None;
@@ -160,6 +169,7 @@ pub const AstNode = struct {
 
         self.value.operand.number = new_value;
         self.modifier = .None;
+        self.sign = .Positive; // The number will now contain the correct sign.
     }
 };
 

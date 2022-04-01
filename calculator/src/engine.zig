@@ -89,6 +89,7 @@ pub fn evaluate(allocator: Allocator, tree: []AstNode) CalculationError!AstNode 
         var groupResult = try evaluateEquation(allocator, deepestNestedGroup.?.value.children);
 
         groupResult.modifier = deepestNestedGroup.?.modifier;
+        groupResult.sign = deepestNestedGroup.?.sign;
         deepestNestedGroup.?.* = groupResult;
 
         currentNestingLevel = 0;

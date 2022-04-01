@@ -29,6 +29,7 @@ pub const Parser = struct {
 
     current_identifier: ?*const tokenizer.Token = null,
     last_type: CategorizedTokenType = .start,
+    current_sign: ?ast.Sign = null,
 
     allowed_variables: []const []const u8 = &[_][]const u8{},
 
@@ -50,10 +51,9 @@ pub const Parser = struct {
                     self.last_type = .other;
                     if (self.current_identifier != null) {
                         try self.parseFunctionCall(&i);
-                        continue;
+                    } else {
+                        try self.parseGroupFrom(&i);
                     }
-
-                    try self.parseGroupFrom(&i);
                 },
                 .@")" => return ParsingError.MissingBracket,
                 .identifier => {
@@ -83,6 +83,16 @@ pub const Parser = struct {
                 .@"!!" => try self.appendModifier(.DoubleFactorial),
                 .@"%" => try self.appendModifier(.Percent),
                 else => try self.parseAstNode(token),
+            }
+
+            if (self.result.items.len > 0) {
+                const last_item = &self.result.items[self.result.items.len - 1];
+                if (last_item.nodeType != .Operator) {
+                    if (self.current_sign) |sign| {
+                        self.result.items[self.result.items.len - 1].sign = sign;
+                        self.current_sign = null;
+                    }
+                }
             }
         }
 
@@ -210,6 +220,11 @@ pub const Parser = struct {
     }
 
     fn parseAstNode(self: *Self, token: *const tokenizer.Token) ParsingError!void {
+        if ((self.last_type == .operator or self.last_type == .start) and (token.type == .@"+" or token.type == .@"-")) {
+            self.current_sign = if (token.type == .@"+") .Positive else .Negative;
+            return;
+        }
+
         if (self.last_type == categorizedTokenType(token.type)) return ParsingError.UnexpectedValue;
         self.last_type = categorizedTokenType(token.type);
 

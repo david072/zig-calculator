@@ -171,20 +171,8 @@ pub const Tokenizer = struct {
                 while (self.accept(identifier_class)) {}
                 return .identifier;
             },
-            '+' => {
-                if (self.accept(digit_class)) {
-                    while (self.accept(digit_class)) {}
-                    return .number;
-                }
-                return .@"+";
-            },
-            '-' => {
-                if (self.accept(digit_class)) {
-                    while (self.accept(digit_class)) {}
-                    return .number;
-                }
-                return .@"-";
-            },
+            '+' => return .@"+",
+            '-' => return .@"-",
             '*' => return .@"*",
             '/' => return .@"/",
             '(' => return .@"(",

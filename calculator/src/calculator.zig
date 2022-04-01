@@ -92,7 +92,7 @@ fn dumpAst(tree: []const ast.AstNode, nestingLevel: usize) void {
                 std.debug.print("   children: {d}\n", .{item.value.children.len});
                 dumpAst(item.value.children, nestingLevel + 1);
             },
-            .Operand => std.debug.print("   number: {d}, unit: {s}, modifier: {s}\n", .{ item.value.operand.number, item.value.operand.unit, item.modifier }),
+            .Operand => std.debug.print("   number: {d}, unit: {s}, modifier: {s} sign: {s}\n", .{ item.value.operand.number, item.value.operand.unit, item.modifier, item.sign }),
             .Operator => std.debug.print("   operation: {s}\n", .{item.value.operation}),
             .FunctionCall => {
                 std.debug.print("   function: name: {s},\nparameters:\n", .{item.value.function_call.function_name});

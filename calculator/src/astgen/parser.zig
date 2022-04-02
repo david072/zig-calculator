@@ -279,6 +279,7 @@ pub const Parser = struct {
                     .@"|" => .BitwiseOr,
                     .@">>" => .BitShiftRight,
                     .@"<<" => .BitShiftLeft,
+                    .xor => .Xor,
                     else => unreachable,
                 },
             },

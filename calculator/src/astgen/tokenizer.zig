@@ -21,18 +21,19 @@ pub const TokenType = enum {
     @"!!",
     @"%",
     @"=",
+    xor,
     identifier,
     separator,
 
     pub fn isOperator(self: TokenType) bool {
         return switch (self) {
-            .@"+", .@"-", .@"*", .@"/", .in, .of, .@"^", .e, .@"&", .@"|", .@">>", .@"<<", .@"=" => true,
+            .@"+", .@"-", .@"*", .@"/", .in, .of, .@"^", .e, .@"&", .@"|", .@">>", .@"<<", .@"=", .xor => true,
             else => false,
         };
     }
 };
 
-pub const keywords = [_][]const u8{"e"};
+pub const keywords = [_][]const u8{"e", "xor"};
 
 pub const Token = struct {
     type: TokenType,

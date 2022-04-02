@@ -165,6 +165,7 @@ pub const AstNode = struct {
             .BitwiseOr => new_value = @intToFloat(f64, @floatToInt(i64, new_value) | @floatToInt(i64, rhs)),
             .BitShiftRight => new_value = @intToFloat(f64, @floatToInt(i64, new_value) >> @floatToInt(u6, rhs)),
             .BitShiftLeft => new_value = @intToFloat(f64, @floatToInt(i64, new_value) << @floatToInt(u6, rhs)),
+            .Xor => new_value = @intToFloat(f64, @floatToInt(i64, new_value) ^ @floatToInt(u6, rhs)),
         }
 
         self.value.operand.number = new_value;
@@ -259,4 +260,5 @@ pub const Operation = enum {
     BitwiseOr,
     BitShiftRight,
     BitShiftLeft,
+    Xor,
 };

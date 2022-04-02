@@ -396,6 +396,7 @@ fn evaluatePointCalculations(allocator: Allocator, equation: *[]AstNode) Calcula
             .BitwiseOr,
             .BitShiftRight,
             .BitShiftLeft,
+            .Xor,
             => {
                 try equation.*[index].apply(allocator, &equation.*[index + 1], &equation.*[index + 2]);
 

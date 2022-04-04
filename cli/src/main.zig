@@ -5,7 +5,6 @@ const calculator = @import("calculator");
 var evaluate_depth: ?calculator.EvaluateDepth = null;
 var verbosity: ?calculator.Verbosity = null;
 
-const allowedCharacters = "+-*/=.,()_:^&|<>!%0123456789abcdefghijklmnopqrstuvwxyz\n\r ";
 const exitInput = "exit";
 
 pub fn main() anyerror!void {
@@ -31,15 +30,9 @@ pub fn main() anyerror!void {
             break :main_loop;
         };
 
-        const invalidCharacterIndex = validateInput(input);
-        if (invalidCharacterIndex) |index| {
-            try showErrorPos(&stdout, 10, index, error.InvalidCharacter);
-            continue :main_loop;
-        }
-
         if (shouldExit(input)) break :main_loop;
 
-        const result = calculator.calculate(input) catch |err| {
+        const result = calculator.calculate(input, evaluate_depth, verbosity) catch |err| {
             try stdout.print("Error: {s}\n", .{@errorName(err)});
             continue :main_loop;
         };
@@ -81,15 +74,6 @@ fn parseArgs(a: std.mem.Allocator) !void {
             } else return error.UnknownVerbosity;
         } else return error.UnknownArgument;
     }
-}
-
-fn validateInput(input: []u8) ?usize {
-    for (input) |item, index| {
-        if (item <= 'A' or item >= 'Z')
-            if (!std.mem.containsAtLeast(u8, allowedCharacters, 1, &[_]u8{item})) return index;
-    }
-
-    return null;
 }
 
 fn shouldExit(input: []const u8) bool {

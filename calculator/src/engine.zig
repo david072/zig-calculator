@@ -361,7 +361,7 @@ fn evaluateConversions(allocator: Allocator, equation: *[]AstNode) CalculationEr
     while (index < equation.len) {
         const operator = &equation.*[index + 1];
         if (operator.nodeType != .Operator) return CalculationError.ExpectedOperation;
-        if (operator.value.operation != .Conversion or operator.value.operation != .Of) {
+        if (operator.value.operation != .Conversion and operator.value.operation != .Of) {
             if (index + 4 >= equation.len) break;
             index += 2;
             continue;

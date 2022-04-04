@@ -33,7 +33,8 @@ pub const TokenType = enum {
     }
 };
 
-pub const keywords = [_][]const u8{"e", "xor"};
+pub const keywords = [_][]const u8{ "e", "xor" };
+pub const allowed_unicode_characters = [_][]const u8{"\u{00b0}"}; // "°"
 
 pub const Token = struct {
     type: TokenType,
@@ -197,8 +198,28 @@ pub const Tokenizer = struct {
             },
             '%' => return .@"%",
             '=' => return .@"=",
-            else => return null,
+            else => {
+                // Check for utf8 character sequence
+                const length = std.unicode.utf8ByteSequenceLength(character) catch 0;
+                if (length == 0) return null;
+
+                const utf8_character = self.source[self.index - 1 .. (self.index - 1) + length];
+                if (!isValidUtf8Character(utf8_character)) return null;
+                
+                // need to subtract 1 here, because the index points to the next character already
+                self.index += length - 1;
+                while (self.accept(identifier_class)) {}
+                return .identifier;
+            },
         }
+    }
+
+    fn isValidUtf8Character(sequence: []const u8) bool {
+        for (allowed_unicode_characters) |*char| {
+            if (std.mem.eql(u8, char.*, sequence)) return true;
+        }
+
+        return false;
     }
 };
 

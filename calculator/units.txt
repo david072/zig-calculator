@@ -38,19 +38,18 @@ h_s = n * 3600
 h_min = n * 60
 
 # Angle
-# FIXME: Figure out how to handle non-ascii symbols like "°"
-deg_rad = n * std.math.pi / 180
-rad_deg = n * 180 / std.math.pi
+\u{00b0}_rad = n * std.math.pi / 180
+rad_\u{00b0} = n * 180 / std.math.pi
 
 # Temperature
-degC_degF = (n * 9 / 5) + 32
-degF_degC = (n - 32) * 5 / 9
+\u{00b0}C_\u{00b0}F = (n * 9 / 5) + 32
+\u{00b0}F_\u{00b0}C = (n - 32) * 5 / 9
 
-degC_K = n + 273.15
-K_degC = n - 273.15
+\u{00b0}C_K = n + 273.15
+K_\u{00b0}C = n - 273.15
 
-degF_K = (n - 32) * 5 / 9 + 273.15
-K_degF = (n - 273.15) * 9 / 5 + 32
+\u{00b0}F_K = (n - 32) * 5 / 9 + 273.15
+K_\u{00b0}F = (n - 273.15) * 9 / 5 + 32
 
 # Mass
 g_lb = n / 453.59237

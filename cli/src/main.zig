@@ -51,11 +51,11 @@ fn parseArgs(a: std.mem.Allocator) !void {
 
     var iterator = try std.process.ArgIterator.initWithAllocator(allocator);
     defer iterator.deinit();
-    _ = try iterator.next(allocator);
+    _ = iterator.next();
 
-    while (try iterator.next(allocator)) |arg| {
+    while (iterator.next()) |arg| {
         if (std.mem.eql(u8, arg, "--evaluate-depth")) {
-            const depth = (try iterator.next(allocator)) orelse continue;
+            const depth = iterator.next() orelse continue;
             if (std.mem.eql(u8, depth, "tokenize")) {
                 evaluate_depth = .Tokenize;
             } else if (std.mem.eql(u8, depth, "parse")) {
@@ -64,7 +64,7 @@ fn parseArgs(a: std.mem.Allocator) !void {
                 evaluate_depth = .Calculate;
             } else return error.UnknownEvaluateDepth;
         } else if (std.mem.eql(u8, arg, "--verbosity")) {
-            const verb = (try iterator.next(allocator)) orelse continue;
+            const verb = iterator.next() orelse continue;
             if (std.mem.eql(u8, verb, "tokens")) {
                 verbosity = .PrintTokens;
             } else if (std.mem.eql(u8, verb, "ast")) {

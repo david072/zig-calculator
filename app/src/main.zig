@@ -68,7 +68,7 @@ fn preWndProc(msg: *const win32.MSG) void {
                 defer gpa.allocator().free(equation_text);
 
                 if (equation_text.len != 0) {
-                    const result = calculator.calculate(equation_text) catch |err| @errorName(err);
+                    const result = calculator.calculate(equation_text, null, null) catch |err| @errorName(err);
                     if (result != null) {
                         current_row.output_text_field.setText(result.?);
                         gpa.allocator().free(result.?);

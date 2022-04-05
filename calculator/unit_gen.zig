@@ -13,7 +13,7 @@ fn shouldRewrite(source_file_path: []const u8, target_file_path: []const u8) boo
     const stat = source_file.stat() catch return true;
     source_last_modified_time = stat.mtime;
 
-    const target_file = std.fs.cwd().openFile(target_file_path, .{ .write = true }) catch return true;
+    const target_file = std.fs.cwd().openFile(target_file_path, .{ .mode = .read_write }) catch return true;
     defer target_file.close();
     const target_file_reader = target_file.reader();
 
